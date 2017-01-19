@@ -27,3 +27,6 @@ alias bmux-start="bmux_start"
 alias bmuxs="bmux_start"
 alias bmux-list="bmux_list"
 alias bmuxl="bmux_list"
+
+alias mtmux="tmux new-session -s matt"
+alias rakepair="cpair c -i m4.4xlarge -p mrossi_fast"
