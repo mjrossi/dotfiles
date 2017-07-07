@@ -187,10 +187,10 @@ if executable('rg')
   let g:ctrlp_user_command = 'rg --files %s'
 endif
 
-Plugin 'scrooloose/syntastic'
-let g:syntastic_python_python_exec = '/usr/local/bin/python3'
-let g:syntastic_ruby_checkers = ['mri', 'rubocop']
-let g:syntastic_mode_map = { "mode": "passive" }
+" Plugin 'scrooloose/syntastic'
+" let g:syntastic_python_python_exec = '/usr/local/bin/python3'
+" let g:syntastic_ruby_checkers = ['mri', 'rubocop']
+" let g:syntastic_mode_map = { "mode": "passive" }
 
 Plugin 'elmcast/elm-vim'
 let g:elm_setup_keybindings = 0
@@ -201,6 +201,12 @@ nmap <buffer> <LocalLeader>r <Plug>(elm-repl)
 nmap <buffer> <LocalLeader>e <Plug>(elm-error-detail)
 " nmap <buffer> <LocalLeader>d <Plug>(elm-show-docs)
 " nmap <buffer> <LocalLeader>w <Plug>(elm-browse-docs)
+
+Plugin 'w0rp/ale'
+let g:ale_lint_on_text_changed = 'normal' " Only lint while in normal mode             
+let g:ale_lint_on_insert_leave = 1        " Automatically lint when leaving insert mode
+
+Plugin 'maralla/completor.vim'
 
 " ========= Shortcuts ========
 
