@@ -42,10 +42,10 @@ endif
 set undolevels=1000 "maximum number of changes that can be undone
 
 " Color
-colorscheme Tomorrow-Night
+colorscheme vibrantink
 au FileType diff colorscheme desert
 au FileType git colorscheme desert
-au BufWinLeave * colorscheme Tomorrow-Night
+au BufWinLeave * colorscheme vibrantink
 
 " ==== Syntax Highlight Reveal ====
 set laststatus=2
