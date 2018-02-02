@@ -62,18 +62,9 @@ safepathprepend $HOME/.bin
 ## Local (LOCAL)
 safepathprepend $HOME/.bin.local
 
-# Ensure user-installed binaries take precedence
-export PATH=/usr/local/bin:$PATH
-
 #Common Tools
 
-export PATH=$PATH:/Applications/Postgres.app/Contents/Versions/latest/bin # Add PSQL to PATH for scripting
-
-export NVM_DIR="$HOME/.nvm"
-  . "$(brew --prefix nvm)/nvm.sh"
-  #
 ## Load RVM into a shell session *as a function*
 safesource $HOME/.rvm/scripts/rvm
 
-export PATH="$PATH:$HOME/.rvm/bin" # Add RVM to PATH for scripting
-
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
