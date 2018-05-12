@@ -59,4 +59,5 @@ alias tmux-public='tmux_public'
 alias tmuxpub='tmux_public'
 
 alias mtmux="tmux new-session -s matt"
-alias rakepair="cpair c -i m4.4xlarge -p mrossi_fast"
+
+alias ls="ls --color"
