@@ -52,3 +52,5 @@
 	name = mjrossi
 	email = matthew.rossi@me.com
 	signingkey = 905331FE3F35173B
+[commit]
+	gpgsign = true
