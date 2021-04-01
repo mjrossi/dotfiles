@@ -141,10 +141,4 @@ safepathprepend $HOME/.bin
 ## Local (LOCAL)
 safepathprepend $HOME/.bin.local
 
-# Common Tools
-safesource $HOME/.rvm/scripts/rvm
-
 safesource $HOME/.fzf.bash
-
-# Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
-export PATH="$PATH:$HOME/.rvm/bin"

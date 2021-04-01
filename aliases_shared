@@ -59,5 +59,3 @@ alias tmux-public='tmux_public'
 alias tmuxpub='tmux_public'
 
 alias mtmux="tmux new-session -s matt"
-
-alias ls="ls --color"
