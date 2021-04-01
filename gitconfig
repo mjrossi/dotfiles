@@ -41,6 +41,8 @@
   please = push --force-with-lease
 [push]
   default = current
+[rebase]
+  autosquash = true
 [core]
   autocrlf = input
   excludesfile = ~/.gitignore_global
