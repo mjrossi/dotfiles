@@ -14,6 +14,8 @@
   cur = log --pretty=format:'%ad %h %d' --abbrev-commit --date=short -1
   ls = ls-files
   pr = pull --rebase
+  set-upstream = !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
+  rau = remote add upstream
 
   # show difference between the HEAD and the index
   staged = diff --cached
