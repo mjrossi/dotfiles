@@ -66,3 +66,4 @@ safepathprepend $HOME/.bin.local
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 export PATH="/usr/local/sbin:$PATH"
+export GPG_TTY=$(tty)
