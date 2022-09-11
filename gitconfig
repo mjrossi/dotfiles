@@ -55,6 +55,10 @@
 [user]
 	name = mjrossi
 	email = matthew.rossi@me.com
-	signingkey = 905331FE3F35173B
+	signingkey = 78ABA18AAFD2CDF8
 [commit]
 	gpgsign = true
+[init]
+	defaultBranch = main
+[gpg]
+	program = /opt/homebrew/bin/gpg
