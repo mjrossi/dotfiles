@@ -22,8 +22,6 @@ safesource() {
 # Being extra cautious to get local bin executables in path
 safepathprepend "/usr/local/bin"
 
-# Add RVM to PATH for scripting
-safepathappend $HOME/.rvm/bin
-
 ## Common Applications
 safepathappend /usr/local/heroku/bin
+. "$HOME/.cargo/env"

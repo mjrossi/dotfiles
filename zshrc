@@ -62,8 +62,29 @@ safepathprepend $HOME/.bin
 ## Local (LOCAL)
 safepathprepend $HOME/.bin.local
 
+export GPG_TTY=$(tty)
+
+# Perforce
+export P4USER=matthew.rossi
+export P4PORT=ssl:p4proxy.ashburn.soma.salesforce.com:1999
+
+# asdf
+safesource $HOME/.asdf/asdf.sh
+#safesource /usr/local/opt/asdf/libexec/asdf.sh
+
+# direnv
+eval "$(asdf exec direnv hook zsh)"
+
+# pyenv
+export VIRTUALENVWRAPPER_PYTHON=/Users/matthew.rossi/.pyenv/shims/python
+# export VIRTUALENVWRAPPER_PYTHON=/usr/local/bin/python3
+if command -v pyenv 1>/dev/null 2>&1; then
+  eval "$(pyenv init -)"
+fi
+source /usr/local/bin/virtualenvwrapper.sh
+
 #Common Tools
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-export PATH="/usr/local/sbin:$PATH"
-export GPG_TTY=$(tty)
+
+source "${XDG_CONFIG_HOME:-$HOME/.config}/asdf-direnv/zshrc"
