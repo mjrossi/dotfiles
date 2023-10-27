@@ -1,0 +1,9 @@
+vim.opt.number = true
+vim.opt.ruler = true
+vim.opt.rulerformat = '%25(%n%m%r: %Y [%l,%v] %p%%%)'
+vim.opt.shiftwidth = 4
+vim.opt.tabstop = 4
+vim.opt.expandtab = true
+vim.opt.wildmenu = true
+vim.opt.termguicolors = true
+vim.opt.colorcolumn = "80"
