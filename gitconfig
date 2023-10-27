@@ -1,0 +1,66 @@
+[color]
+  ui = auto
+[alias]
+  ci = commit
+  co = checkout
+  st = status
+  ch = cherry -v origin
+  br = branch
+  aa = add --all --verbose .
+  addall = add -A .
+  hist = log --graph --abbrev-commit --pretty=format:'%C(red)%h%C(reset) - %s %C(green)(%cr) %C(blue)<%an>%C(magenta)%d%C(reset)'
+  oneline = log --pretty=format:\"%h %ad%x20%s%x20%x28%an%x29\" --date=short
+  current = log --pretty=format:'%ad %h %d' --abbrev-commit --date=short -1
+  cur = log --pretty=format:'%ad %h %d' --abbrev-commit --date=short -1
+  ls = ls-files
+  pr = pull --rebase
+  set-upstream = !git branch --set-upstream-to=origin/`git symbolic-ref --short HEAD`
+  rau = remote add upstream
+
+  # show difference between the HEAD and the index
+  staged = diff --cached
+  dc = diff --cached
+  ds = diff --staged
+
+  # show difference between working tree and the index
+  unstaged = diff
+
+  pile = stash --include-untracked
+
+  # git-duet aliases (must have https://github.com/git-duet/git-duet installed)
+  dci = duet-commit
+
+  branches = branch -a
+  unstage = reset -q HEAD --
+  remotes = remote -v
+  amend = commit --amend
+  nuke = !git reset --hard HEAD && git clean -d -f
+  graph = log --graph -9 --branches --remotes --tags  --format=format:'%Cgreen%h %Creset• %<(75,trunc)%s (%cN, %cr) %Cred%d' --date-order
+
+  precommit = diff --cached --diff-algorithm=minimal -w
+
+[alias "push"]
+  please = push --force-with-lease
+[push]
+  default = current
+[rebase]
+  autosquash = true
+[core]
+  autocrlf = input
+  excludesfile = ~/.gitignore_global
+#[user]
+#  	name = mjrossi
+#	email = matthew.rossi@me.com
+#	signingkey = 78ABA18AAFD2CDF8
+[user]
+	name = mjrossi
+	email = matthew.rossi@salesforce.com
+	signingkey = 5D333E72A10EFDDA
+[commit]
+	gpgsign = true
+[pull]
+	rebase = false
+[url "git@git.soma.salesforce.com:"]
+  insteadOf = https://git.soma.salesforce.com/
+[init]
+	defaultBranch = main
