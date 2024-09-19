@@ -48,10 +48,10 @@
 [core]
   autocrlf = input
   excludesfile = ~/.gitignore_global
-#[user]
-#  	name = mjrossi
-#	email = matthew.rossi@me.com
-#	signingkey = 78ABA18AAFD2CDF8
+# [pager]
+#   log = diff-highlight | less
+#   show = diff-highlight | less
+#   diff = diff-highlight | less
 [user]
 	name = mjrossi
 	email = matthew.rossi@salesforce.com

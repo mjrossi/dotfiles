@@ -5,6 +5,10 @@ end
 # asdf
 source /usr/local/opt/asdf/libexec/asdf.fish
 
+# go
+source ~/.asdf/plugins/golang/set-env.fish
+
 abbr h 'heroku'
 abbr vi 'nvim'
 abbr vim 'nvim'
+abbr ll 'ls -ahl'
