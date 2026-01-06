@@ -1,0 +1,20 @@
+# Auto-generated files (created after symlinking)
+fish/fish_variables
+nvim/lazy-lock.json
+
+# Backup files
+**/*.bak
+
+# macOS metadata
+.DS_Store
+
+# Runtime state
+.dotfiles-state
+
+# Machine-specific configs
+.gitconfig.local
+fish/config.local.fish
+zellij/config.kdl
+
+# VSCode Editor settings
+.vscode/*

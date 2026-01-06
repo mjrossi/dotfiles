@@ -1,0 +1,15 @@
+// Machine-specific Zellij configuration
+// Copy this file to ~/.config/zellij/config.kdl and update with your settings
+// This file is NOT tracked in git - it's specific to each machine
+
+// 1. First, copy the shared configuration that applies to all machines
+// 2. Then add/override machine-specific settings below
+
+// Example: Uncomment and set your web server cert paths if using HTTPS
+// web_server_cert "/path/to/your/cert.pem"
+// web_server_key "/path/to/your/key.pem"
+
+// To create your machine-specific config:
+//   1. Copy config.shared.kdl to ~/.config/zellij/config.kdl
+//   2. Add any machine-specific overrides or settings here
+//   3. The shared config contains all your keybindings and general settings

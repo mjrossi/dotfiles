@@ -1,0 +1,12 @@
+# Machine-specific Fish configuration
+# Copy this file to ~/.config/fish/config.local.fish and update with your settings
+# This file is NOT tracked in git - it's specific to each machine
+
+# Example: Work-specific environment variables
+# set -gx WORK_PROXY "proxy.example.com:8080"
+# set -gx CUSTOM_PATH "/opt/custom/bin"
+
+# Example: Machine-specific abbreviations
+# abbr work 'cd ~/work-projects'
+
+# Add any other machine-specific environment variables, abbreviations, or functions here

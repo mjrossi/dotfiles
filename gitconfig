@@ -48,19 +48,18 @@
 [core]
   autocrlf = input
   excludesfile = ~/.gitignore_global
-# [pager]
-#   log = diff-highlight | less
-#   show = diff-highlight | less
-#   diff = diff-highlight | less
+  editor = nvim
 [user]
-	name = mjrossi
-	email = matthew.rossi@salesforce.com
-	signingkey = 5D333E72A10EFDDA
+  name = mjrossi
+[gpg]
+  format = ssh
+[gpg "ssh"]
+  program = "/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
 [commit]
-	gpgsign = true
+  gpgsign = true
+[include]
+  path = ~/.gitconfig.local
 [pull]
-	rebase = false
-[url "git@git.soma.salesforce.com:"]
-  insteadOf = https://git.soma.salesforce.com/
+  rebase = false
 [init]
-	defaultBranch = main
+  defaultBranch = main

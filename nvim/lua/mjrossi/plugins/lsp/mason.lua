@@ -5,16 +5,9 @@ return {
         "WhoIsSethDaniel/mason-tool-installer.nvim",
     },
     config = function()
-        -- import mason
         local mason = require("mason")
-
-        -- import mason-lspconfig
         local mason_lspconfig = require("mason-lspconfig")
-
         local mason_tool_installer = require("mason-tool-installer")
-
-        -- import lsp-zero
-        local lsp_zero = require("lsp-zero")
 
         -- enable mason and configure icons
         mason.setup({
@@ -37,11 +30,9 @@ return {
                 "rust_analyzer",
                 "yamlls",
             },
-            -- auto-install configured servers (with lspconfig)
-            automatic_installation = true, -- not the same as ensure_installed
-            handlers = {
-                lsp_zero.default_setup,
-            },
+            -- Automatically enable installed servers
+            -- Servers explicitly configured in lsp-zero.lua (using vim.lsp.config) will use those configs
+            automatic_enable = true,
         })
 
         mason_tool_installer.setup({

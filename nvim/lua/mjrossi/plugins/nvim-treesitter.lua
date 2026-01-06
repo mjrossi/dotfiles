@@ -8,7 +8,7 @@ return {
 
         configs.setup({
             ensure_installed = { "c", "lua", "vim", "vimdoc", "query", "elixir", "heex", "javascript", "html", "go",
-                "gomod", "gosum", "ruby", "python" },
+                "gomod", "gosum", "ruby", "python", "just" },
             sync_install = false,
             highlight = { enable = true },
             indent = { enable = true },

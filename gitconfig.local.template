@@ -1,0 +1,11 @@
+# Machine-specific Git configuration
+# Copy this file to ~/.gitconfig.local and update with your settings
+# This file is NOT tracked in git - it's specific to each machine
+
+[user]
+  # Your email for this machine (work or personal)
+  email = your.email@example.com
+
+  # Your SSH signing key from 1Password
+  # To find your key: Open 1Password → SSH key → "Configure Commit Signing"
+  signingkey = ssh-ed25519 AAAA...your-public-key-here...
