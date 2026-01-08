@@ -6,7 +6,15 @@ return {
     },
     config = function()
         local telescope = require("telescope")
-        telescope.setup({})
+        telescope.setup({
+            defaults = {
+                file_ignore_patterns = {
+                    "vendor/",
+                    "node_modules/",
+                    ".git/",
+                },
+            },
+        })
 
         local builtin = require("telescope.builtin")
         vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = "Find Files" })
