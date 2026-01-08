@@ -134,6 +134,9 @@ keybinds clear-defaults=true {
         }
     }
     shared_except "locked" {
+        // macOS: Commented out to avoid conflict with Option+Arrow word navigation
+        // - Alt f: Ghostty send ESC+f for Option+Right Arrow
+        // Use Ctrl+p then 'w' for toggling floating panes
         bind "Alt left" { MoveFocusOrTab "left"; }
         bind "Alt down" { MoveFocus "down"; }
         bind "Alt up" { MoveFocus "up"; }
@@ -143,7 +146,7 @@ keybinds clear-defaults=true {
         bind "Alt =" { Resize "Increase"; }
         bind "Alt [" { PreviousSwapLayout; }
         bind "Alt ]" { NextSwapLayout; }
-        bind "Alt f" { ToggleFloatingPanes; }
+        // bind "Alt f" { ToggleFloatingPanes; }
         bind "Ctrl g" { SwitchToMode "locked"; }
         bind "Alt h" { MoveFocusOrTab "left"; }
         bind "Alt i" { MoveTab "left"; }
