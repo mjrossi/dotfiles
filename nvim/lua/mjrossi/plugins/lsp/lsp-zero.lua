@@ -29,6 +29,12 @@ return {
             vim.keymap.set({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, opts)
             vim.keymap.set("n", "<leader>rs", ":LspRestart<CR>", opts)
 
+            -- Diagnostic keybindings
+            vim.keymap.set("n", "gl", vim.diagnostic.open_float, opts)
+            vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, opts)
+            vim.keymap.set("n", "]d", vim.diagnostic.goto_next, opts)
+            vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, opts)
+
             -- Format on save for specific filetypes
             if client.supports_method("textDocument/formatting") then
                 local filetype = vim.bo[bufnr].filetype

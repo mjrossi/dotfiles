@@ -32,6 +32,7 @@ return {
                 ["<C-e>"] = cmp.mapping.abort(),
                 ["<C-j>"] = cmp.mapping.select_next_item(),
                 ["<C-k>"] = cmp.mapping.select_prev_item(),
+                ["<CR>"] = cmp.mapping.confirm({ select = false }),
                 ["<C-l>"] = cmp.mapping.confirm({ select = true }),
             }),
         })
