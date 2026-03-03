@@ -54,7 +54,6 @@ set -gx EDITOR nvim
 set -gx SSH_AUTH_SOCK "~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.soc"
 set -gx GPG_TTY (tty)
 
-abbr h 'heroku'
 abbr vi 'nvim'
 abbr vim 'nvim'
 abbr ll 'ls -ahl'
