@@ -28,20 +28,25 @@ return {
                 "lua_ls",
                 "pyright",
                 "rust_analyzer",
+                "taplo",
                 "yamlls",
             },
-            -- Automatically enable installed servers
-            -- Servers explicitly configured in lsp-zero.lua (using vim.lsp.config) will use those configs
+            -- Automatically enable installed servers.
+            -- Servers explicitly configured in lsp-zero.lua (using vim.lsp.config) will use those configs.
             automatic_enable = true,
         })
 
         mason_tool_installer.setup({
             ensure_installed = {
-                "stylua", -- lua formatter
-                "isort", -- python formatter
-                "black", -- python formatter
-                "pylint", -- python linter
-                "gopls", -- go formatter
+                "black",           -- python formatter
+                "golangci-lint",   -- go linter
+                "goimports",       -- go import organizer (used by conform)
+                "isort",           -- python import sorter
+                "prettier",        -- yaml formatter
+                "pylint",          -- python linter
+                "rubocop",         -- ruby linter + formatter
+                "stylua",          -- lua formatter
+                "taplo",           -- toml formatter
             },
         })
     end,

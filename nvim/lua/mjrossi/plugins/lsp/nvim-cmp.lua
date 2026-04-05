@@ -36,5 +36,9 @@ return {
                 ["<C-l>"] = cmp.mapping.confirm({ select = true }),
             }),
         })
+
+        -- Integrate autopairs with nvim-cmp so pairs fire after completion confirm
+        local cmp_autopairs = require("nvim-autopairs.completion.cmp")
+        cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
     end
 }

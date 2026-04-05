@@ -3,18 +3,14 @@ return {
     event = { "BufReadPre", "BufNewFile" },
     dependencies = {
         "hrsh7th/cmp-nvim-lsp",
-        "folke/neodev.nvim",
     },
     config = function()
         local cmp_nvim_lsp = require("cmp_nvim_lsp")
 
-        -- Setup neodev for better Neovim Lua development
-        require("neodev").setup({})
-
         -- Default capabilities with completion support
         local capabilities = cmp_nvim_lsp.default_capabilities()
 
-        -- Default on_attach function for keymaps and formatting
+        -- Default on_attach function for keymaps
         local on_attach = function(client, bufnr)
             local opts = { buffer = bufnr, silent = true }
 
@@ -31,23 +27,17 @@ return {
 
             -- Diagnostic keybindings
             vim.keymap.set("n", "gl", vim.diagnostic.open_float, opts)
-            vim.keymap.set("n", "[d", vim.diagnostic.goto_prev, opts)
-            vim.keymap.set("n", "]d", vim.diagnostic.goto_next, opts)
+            vim.keymap.set("n", "[d", function() vim.diagnostic.jump({ count = -1 }) end, opts)
+            vim.keymap.set("n", "]d", function() vim.diagnostic.jump({ count = 1 }) end, opts)
             vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, opts)
-
-            -- Format on save for specific filetypes
-            if client.supports_method("textDocument/formatting") then
-                local filetype = vim.bo[bufnr].filetype
-                if filetype == "lua" or filetype == "rust" or filetype == "go" then
-                    vim.api.nvim_create_autocmd("BufWritePre", {
-                        buffer = bufnr,
-                        callback = function()
-                            vim.lsp.buf.format({ bufnr = bufnr })
-                        end,
-                    })
-                end
-            end
         end
+
+        -- Apply shared capabilities and on_attach to all servers
+        -- Individual server configs below will merge/override as needed
+        vim.lsp.config('*', {
+            capabilities = capabilities,
+            on_attach = on_attach,
+        })
 
         -- Configure gopls using new nvim 0.11 API
         vim.lsp.config.gopls = {
@@ -107,9 +97,25 @@ return {
             },
         }
 
+        -- Configure pyright to use the mise-managed Python shim.
+        -- The shim resolves to the correct Python version based on the project's .mise.toml.
+        vim.lsp.config.pyright = {
+            cmd = { "pyright-langserver", "--stdio" },
+            filetypes = { "python" },
+            root_markers = { "pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "pyrightconfig.json", ".git" },
+            capabilities = capabilities,
+            on_attach = on_attach,
+            settings = {
+                python = {
+                    pythonPath = vim.fn.expand("~/.local/share/mise/shims/python"),
+                },
+            },
+        }
+
         -- Enable the configured servers
         vim.lsp.enable("gopls")
         vim.lsp.enable("lua_ls")
+        vim.lsp.enable("pyright")
         vim.lsp.enable("yamlls")
     end,
 }

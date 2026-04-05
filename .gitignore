@@ -18,3 +18,6 @@ zellij/config.kdl
 
 # VSCode Editor settings
 .vscode/*
+
+# Claude settings
+.claude/*
