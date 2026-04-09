@@ -32,7 +32,7 @@ CONFIG_FILES: Dict[str, Path] = {
 IGNORE_PATTERNS: List[str] = [
     'Rakefile', 'README.md', '.DS_Store', '.git', '.gitignore',
     '*.bak', 'install.py', 'uninstall.py', 'lib', '.dotfiles-state',
-    '*.template', 'config.local.fish', 'tests', 'run_tests.sh',
+    '*.template', 'config.local.fish', 'config.local.kdl', 'tests', 'run_tests.sh',
 ]
 
 # State file location

@@ -68,6 +68,7 @@ Examples:
     installed = 0
     skipped = 0
     backed_up = 0
+    generated = []
     errors = 0
 
     print()
@@ -233,19 +234,25 @@ Examples:
                     os.chmod(str(ssh_config), 0o600)
                 logger.success("Set ~/.ssh/config permissions to 600", indent=True)
 
-    # Special handling for zellij: copy config.shared.kdl to config.kdl if needed
+    # Special handling for zellij: always regenerate config.kdl from shared + local
     zellij_config_dir = Path.home() / '.config' / 'zellij'
     zellij_config = zellij_config_dir / 'config.kdl'
     zellij_shared = zellij_config_dir / 'config.shared.kdl'
+    zellij_local = zellij_config_dir / 'config.local.kdl'
 
     if zellij_config_dir.exists() and zellij_shared.exists():
-        # Only process if config.kdl doesn't exist yet
-        if not zellij_config.exists():
-            logger.debug("Processing zellij config setup...")
-            logger.success("Created config.kdl from config.shared.kdl", indent=True)
-            if not args.dry_run:
-                import shutil
-                shutil.copy2(str(zellij_shared), str(zellij_config))
+        logger.debug("Generating zellij config.kdl from shared + local...")
+        if not args.dry_run:
+            import shutil
+            shutil.copy2(str(zellij_shared), str(zellij_config))
+            if zellij_local.exists():
+                with open(str(zellij_config), 'a') as f:
+                    f.write('\n// Machine-specific overrides from config.local.kdl\n')
+                    with open(str(zellij_local)) as local:
+                        f.write(local.read())
+        detail = "shared + local" if zellij_local.exists() else "shared"
+        logger.success(f"Generated zellij/config.kdl from {detail}", indent=True)
+        generated.append(f"zellij/config.kdl ({detail})")
 
     # Save state file
     if not args.dry_run and installed > 0:
@@ -260,6 +267,10 @@ Examples:
     print(f"  Installed:       {installed}")
     print(f"  Skipped:         {skipped}")
     print(f"  Backed up:       {backed_up}")
+    print(f"  Generated:       {len(generated)}")
+    if generated:
+        for item in generated:
+            print(f"    - {item}")
     if errors > 0:
         print(f"  Errors:          {errors}")
     print("=" * 60)

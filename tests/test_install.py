@@ -154,7 +154,6 @@ class TestZellijSpecialHandling(unittest.TestCase):
         zellij_dir = self.dotfiles_dir / "zellij"
         zellij_dir.mkdir()
         (zellij_dir / "config.shared.kdl").write_text("# shared zellij config")
-        (zellij_dir / "config.kdl.template").write_text("# template")
 
         # Symlink zellij directory
         zellij_dest = self.config_dir / "zellij"
@@ -171,8 +170,8 @@ class TestZellijSpecialHandling(unittest.TestCase):
         zellij_config = self.config_dir / "zellij" / "config.kdl"
         zellij_shared = self.config_dir / "zellij" / "config.shared.kdl"
 
-        # Simulate install.py logic
-        if zellij_shared.exists() and not zellij_config.exists():
+        # Simulate install.py logic: always regenerate
+        if zellij_shared.exists():
             shutil.copy2(zellij_shared, zellij_config)
 
         self.assertTrue(zellij_config.exists())
@@ -181,20 +180,42 @@ class TestZellijSpecialHandling(unittest.TestCase):
             "# shared zellij config"
         )
 
-    def test_config_kdl_not_overwritten_if_exists(self):
-        """Test that existing config.kdl is not overwritten."""
+    def test_config_kdl_always_regenerated(self):
+        """Test that config.kdl is always regenerated from shared."""
         zellij_config = self.config_dir / "zellij" / "config.kdl"
         zellij_shared = self.config_dir / "zellij" / "config.shared.kdl"
 
-        # Create existing config.kdl
-        zellij_config.write_text("# custom config")
+        # Create existing stale config.kdl
+        zellij_config.write_text("# stale config")
 
-        # Simulate install.py logic
-        if zellij_shared.exists() and not zellij_config.exists():
+        # Simulate install.py logic: always regenerate
+        if zellij_shared.exists():
             shutil.copy2(zellij_shared, zellij_config)
 
-        # Should still have custom content
-        self.assertEqual(zellij_config.read_text(), "# custom config")
+        # Should have shared content, not stale
+        self.assertEqual(zellij_config.read_text(), "# shared zellij config")
+
+    def test_config_kdl_appends_local(self):
+        """Test that config.local.kdl is appended to generated config.kdl."""
+        zellij_config = self.config_dir / "zellij" / "config.kdl"
+        zellij_shared = self.config_dir / "zellij" / "config.shared.kdl"
+        zellij_local = self.config_dir / "zellij" / "config.local.kdl"
+
+        # Create local overrides
+        zellij_local.write_text('web_server_cert "/path/to/cert.pem"\n')
+
+        # Simulate install.py logic: regenerate + append local
+        if zellij_shared.exists():
+            shutil.copy2(zellij_shared, zellij_config)
+            if zellij_local.exists():
+                with open(zellij_config, 'a') as f:
+                    f.write('\n// Machine-specific overrides from config.local.kdl\n')
+                    with open(zellij_local) as local:
+                        f.write(local.read())
+
+        content = zellij_config.read_text()
+        self.assertIn("# shared zellij config", content)
+        self.assertIn("web_server_cert", content)
 
 
 class TestIdempotency(unittest.TestCase):
