@@ -18,12 +18,14 @@ CONFIG_DIRS: Dict[str, Path] = {
     'nvim': Path.home() / '.config' / 'nvim',
     'zellij': Path.home() / '.config' / 'zellij',
     'mise': Path.home() / '.config' / 'mise',
+    'ghostty': Path.home() / '.config' / 'ghostty',
 }
 
 # Configuration: File mappings
 CONFIG_FILES: Dict[str, Path] = {
     'gitconfig': Path.home() / '.gitconfig',
     'gitignore_global': Path.home() / '.gitignore_global',
+    'ssh/config': Path.home() / '.ssh' / 'config',
 }
 
 # Files/patterns to never symlink

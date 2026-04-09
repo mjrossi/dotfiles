@@ -1,14 +1,16 @@
 # Dotfiles
 
-Personal configuration files managed via symlinks. This repository contains configurations for Fish shell, Neovim, Zellij, mise, and Git, with Python scripts to automatically install and manage them across machines.
+Personal configuration files managed via symlinks. This repository contains configurations for Fish shell, Neovim, Zellij, Ghostty, mise, Git, and SSH, with Python scripts to automatically install and manage them across machines.
 
 ## What's Included
 
 - **Fish Shell** - Shell configuration, custom prompt, and functions
 - **Neovim** - Editor configuration with LSP, Tree-sitter, and plugins (lazy.nvim)
 - **Zellij** - Terminal multiplexer configuration
+- **Ghostty** - Terminal emulator configuration (Tokyo Night theme)
 - **mise** - Runtime version manager configuration
 - **Git** - Global gitconfig and gitignore
+- **SSH** - SSH config with 1Password agent integration
 
 ## Quick Start
 
@@ -73,8 +75,10 @@ The installation script creates **symlinks** from your home directory to this re
 ~/.config/nvim/       → ~/dotfiles/nvim/
 ~/.config/zellij/     → ~/dotfiles/zellij/
 ~/.config/mise/       → ~/dotfiles/mise/
+~/.config/ghostty/    → ~/dotfiles/ghostty/
 ~/.gitconfig          → ~/dotfiles/gitconfig
 ~/.gitignore_global   → ~/dotfiles/gitignore_global
+~/.ssh/config         → ~/dotfiles/ssh/config
 ```
 
 **Benefits:**
@@ -257,6 +261,10 @@ dotfiles/
 │   └── config.kdl.template       # Template for machine-specific config
 ├── mise/                          # mise configuration
 │   └── config.toml
+├── ghostty/                       # Ghostty terminal configuration
+│   └── config
+├── ssh/                           # SSH configuration
+│   └── config                    # 1Password SSH agent integration
 ├── gitconfig                      # Git global config
 ├── gitconfig.local.template       # Template for machine-specific git config
 └── gitignore_global               # Git global ignore patterns
@@ -446,6 +454,8 @@ The tests cover:
 - Installation with existing configs (backup creation)
 - Idempotent re-runs (skipping already installed)
 - Zellij config.kdl creation from config.shared.kdl
+- State file preservation on re-install
+- SSH directory permission handling
 - Uninstallation with and without backups
 - Machine-specific file preservation
 - Dry-run mode behavior

@@ -42,6 +42,9 @@ Examples:
     logger = Logger(verbose=args.verbose)
     state = StateManager()
 
+    # Preserve existing installation records for items that are already installed
+    state.installations = state.load()
+
     # Get dotfiles directory
     dotfiles_dir = get_dotfiles_dir()
     logger.debug(f"Dotfiles directory: {dotfiles_dir}")
@@ -209,6 +212,26 @@ Examples:
                 state.add('file', source_name, dest, backup_created=had_backup)
         else:
             errors += 1
+
+    # Special handling for SSH: ensure ~/.ssh permissions are correct
+    ssh_dir = Path.home() / '.ssh'
+    if ssh_dir.exists():
+        import os
+        current_perms = oct(ssh_dir.stat().st_mode)[-3:]
+        if current_perms != '700':
+            logger.debug(f"Fixing ~/.ssh permissions: {current_perms} -> 700")
+            if not args.dry_run:
+                os.chmod(str(ssh_dir), 0o700)
+            logger.success("Set ~/.ssh directory permissions to 700", indent=True)
+
+        ssh_config = ssh_dir / 'config'
+        if ssh_config.exists() or ssh_config.is_symlink():
+            config_perms = oct(os.stat(str(ssh_config)).st_mode)[-3:]
+            if config_perms != '600':
+                logger.debug(f"Fixing ~/.ssh/config permissions: {config_perms} -> 600")
+                if not args.dry_run:
+                    os.chmod(str(ssh_config), 0o600)
+                logger.success("Set ~/.ssh/config permissions to 600", indent=True)
 
     # Special handling for zellij: copy config.shared.kdl to config.kdl if needed
     zellij_config_dir = Path.home() / '.config' / 'zellij'

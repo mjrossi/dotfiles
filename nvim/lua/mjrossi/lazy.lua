@@ -18,7 +18,7 @@ local plugins = {
 
 local opts = {
   install = {
-    colorscheme = { "nightfly" },
+    colorscheme = { "tokyonight" },
   },
   checker = {
     enabled = true,

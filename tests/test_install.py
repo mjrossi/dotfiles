@@ -240,5 +240,80 @@ class TestIdempotency(unittest.TestCase):
         self.assertTrue(is_installed)
 
 
+class TestStatePreservation(unittest.TestCase):
+    """Test that re-running install preserves existing state records."""
+
+    def setUp(self):
+        """Create temporary directories for testing."""
+        self.test_dir = tempfile.mkdtemp()
+        self.state_file = Path(self.test_dir) / ".dotfiles-state"
+        self.logger = Logger(verbose=False)
+
+    def tearDown(self):
+        """Clean up temporary directories."""
+        shutil.rmtree(self.test_dir)
+
+    def test_existing_state_loaded_before_save(self):
+        """Test that existing state records are preserved when new items are added."""
+        # Create initial state with some items
+        state = StateManager(state_file=self.state_file)
+        state.add('dir', 'fish', Path('/home/.config/fish'), backup_created=True)
+        state.add('dir', 'nvim', Path('/home/.config/nvim'), backup_created=False)
+        state.save()
+
+        # Simulate re-install: load existing state, add new item
+        state2 = StateManager(state_file=self.state_file)
+        state2.installations = state2.load()
+        state2.add('dir', 'ghostty', Path('/home/.config/ghostty'), backup_created=False)
+        state2.save()
+
+        # Verify all records are preserved
+        state3 = StateManager(state_file=self.state_file)
+        records = state3.load()
+
+        self.assertEqual(len(records), 3)
+        sources = [r['source'] for r in records]
+        self.assertIn('fish', sources)
+        self.assertIn('nvim', sources)
+        self.assertIn('ghostty', sources)
+
+    def test_empty_state_works(self):
+        """Test that loading from non-existent state returns empty list."""
+        state = StateManager(state_file=self.state_file)
+        records = state.load()
+        self.assertEqual(records, [])
+
+
+class TestSSHPermissions(unittest.TestCase):
+    """Test SSH directory permission handling."""
+
+    def setUp(self):
+        """Create temporary directories for testing."""
+        self.test_dir = tempfile.mkdtemp()
+        self.ssh_dir = Path(self.test_dir) / ".ssh"
+        self.ssh_dir.mkdir(mode=0o755)
+
+    def tearDown(self):
+        """Clean up temporary directories."""
+        shutil.rmtree(self.test_dir)
+
+    def test_ssh_dir_permissions_fixed(self):
+        """Test that ~/.ssh permissions are corrected to 700."""
+        current_perms = oct(self.ssh_dir.stat().st_mode)[-3:]
+        self.assertEqual(current_perms, '755')
+
+        os.chmod(str(self.ssh_dir), 0o700)
+
+        fixed_perms = oct(self.ssh_dir.stat().st_mode)[-3:]
+        self.assertEqual(fixed_perms, '700')
+
+    def test_ssh_dir_already_correct(self):
+        """Test that correct permissions are not changed."""
+        os.chmod(str(self.ssh_dir), 0o700)
+
+        current_perms = oct(self.ssh_dir.stat().st_mode)[-3:]
+        self.assertEqual(current_perms, '700')
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -1,0 +1,24 @@
+# Font
+font-family = JetBrains Mono
+font-size = 14
+
+# Theme - match Neovim
+theme = tokyonight
+
+# Window
+window-padding-x = 4
+window-padding-y = 4
+macos-titlebar-style = tabs
+
+# Shell
+shell-integration = fish
+
+# Cursor
+cursor-style = block
+cursor-style-blink = false
+
+# macOS
+macos-option-as-alt = true
+
+# Keybindings
+keybind = shift+enter=text:\n

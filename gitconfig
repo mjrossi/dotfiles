@@ -63,3 +63,18 @@
   rebase = false
 [init]
   defaultBranch = main
+[rerere]
+  enabled = true
+[column]
+  ui = auto
+[branch]
+  sort = -committerdate
+[tag]
+  sort = version:refname
+[diff]
+  algorithm = histogram
+  colorMoved = plain
+[fetch]
+  prune = true
+[merge]
+  conflictstyle = zdiff3

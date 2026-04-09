@@ -1,3 +1,5 @@
+redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
+
 [tools]
 "cargo:bottom" = "latest"
 "cargo:fd-find" = "latest"
@@ -25,11 +27,12 @@ claude = "latest"
 [settings]
 experimental = true
 idiomatic_version_file_enable_tools = ["ruby"]
+pin = true
+python.uv_venv_auto = true
 
 [env]
 MISE_ENV = "development"
-MACOSX_DEPLOYMENT_TARGET = "{{ exec(command='sw_vers -productVersion') }}"
-GITHUB_API_TOKEN = "{{ exec(command='gh auth token') }}"
+MACOSX_DEPLOYMENT_TARGET = "26.4"  # bump after major macOS upgrades (sw_vers -productVersion)
 
 [tasks.install_go_tools]
 description = "Install Go Tools Specific to a Version of Go"
