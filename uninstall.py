@@ -4,6 +4,7 @@ Dotfiles uninstallation script - removes symlinks and restores backups.
 """
 
 import argparse
+import shutil
 import sys
 from pathlib import Path
 
@@ -171,13 +172,9 @@ Examples:
             removed += 1
 
             # Try to restore backup
-            backup_path_check = Path(f"{dest}.bak")
-            if backup_path_check.exists():
-                if restore_backup(dest, dry_run=args.dry_run, logger=logger):
-                    logger.success(f"Restored backup", indent=True)
-                    restored += 1
-                else:
-                    logger.warning(f"Could not restore backup", indent=True)
+            if restore_backup(dest, dry_run=args.dry_run, logger=logger):
+                logger.success(f"Restored backup", indent=True)
+                restored += 1
             else:
                 logger.debug(f"No backup found for {source_name}")
 
@@ -189,7 +186,6 @@ Examples:
                 else:
                     target = dest / file_to_preserve['filename']
                     try:
-                        import shutil
                         # Ensure parent directory exists (in case no backup was restored)
                         target.parent.mkdir(parents=True, exist_ok=True)
                         shutil.copy2(str(file_to_preserve['source']), str(target))

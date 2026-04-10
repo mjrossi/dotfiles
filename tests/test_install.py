@@ -14,7 +14,7 @@ import os
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.common import (
-    backup_path, create_symlink, is_managed_symlink,
+    backup_path, restore_backup, create_symlink, is_managed_symlink,
     Logger, StateManager
 )
 
@@ -133,6 +133,60 @@ class TestInstallWithExistingConfigs(unittest.TestCase):
 
         self.assertEqual(backup1.name, "fish.bak")
         self.assertEqual(backup2.name, "fish.bak.1")
+
+
+class TestRestoreBackupNumbered(unittest.TestCase):
+    """Test that restore_backup picks the most recent (highest-numbered) backup."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.config_dir = Path(self.test_dir) / ".config"
+        self.config_dir.mkdir()
+        self.logger = Logger(verbose=False)
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_restore_picks_highest_numbered_backup(self):
+        """With .bak, .bak.1, .bak.2 -- restore should pick .bak.2 (newest)."""
+        dest = self.config_dir / "fish"
+
+        bak = self.config_dir / "fish.bak"
+        bak.mkdir()
+        (bak / "config.fish").write_text("# oldest")
+
+        bak1 = self.config_dir / "fish.bak.1"
+        bak1.mkdir()
+        (bak1 / "config.fish").write_text("# middle")
+
+        bak2 = self.config_dir / "fish.bak.2"
+        bak2.mkdir()
+        (bak2 / "config.fish").write_text("# newest")
+
+        result = restore_backup(dest, dry_run=False, logger=self.logger)
+
+        self.assertTrue(result)
+        self.assertTrue(dest.exists())
+        self.assertEqual((dest / "config.fish").read_text(), "# newest")
+        # .bak.2 should be gone (moved to dest), .bak and .bak.1 remain
+        self.assertFalse(bak2.exists())
+        self.assertTrue(bak.exists())
+        self.assertTrue(bak1.exists())
+
+    def test_restore_falls_back_to_bak_when_no_numbered(self):
+        """With only .bak (no numbered), restore should pick .bak."""
+        dest = self.config_dir / "fish"
+
+        bak = self.config_dir / "fish.bak"
+        bak.mkdir()
+        (bak / "config.fish").write_text("# only backup")
+
+        result = restore_backup(dest, dry_run=False, logger=self.logger)
+
+        self.assertTrue(result)
+        self.assertTrue(dest.exists())
+        self.assertEqual((dest / "config.fish").read_text(), "# only backup")
+        self.assertFalse(bak.exists())
 
 
 class TestZellijSpecialHandling(unittest.TestCase):

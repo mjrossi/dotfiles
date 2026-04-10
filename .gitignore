@@ -21,4 +21,5 @@ zellij/config.local.kdl
 .vscode/*
 
 # Claude settings
+mise/.claude/
 .claude/*

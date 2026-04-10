@@ -4,6 +4,8 @@ Dotfiles installation script - creates symlinks for configuration files and dire
 """
 
 import argparse
+import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -12,6 +14,81 @@ from lib.common import (
     CONFIG_DIRS, CONFIG_FILES, Logger, StateManager,
     get_dotfiles_dir, backup_path, create_symlink, is_managed_symlink
 )
+
+
+def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, counters):
+    """Process a single config item: validate, backup if needed, and create symlink."""
+    source = dotfiles_dir / source_name
+
+    logger.header(f"Installing {source_name}...")
+    logger.debug(f"Processing {kind}: {source_name}")
+    logger.debug(f"  Source: {source}")
+    logger.debug(f"  Destination: {dest}")
+
+    # Validate source exists and is the right type
+    if not source.exists():
+        logger.error(f"Source {kind} does not exist: {source}", indent=True)
+        counters['errors'] += 1
+        return
+
+    if kind == 'dir' and not source.is_dir():
+        logger.error(f"Source is not a directory: {source}", indent=True)
+        counters['errors'] += 1
+        return
+
+    if kind == 'file' and not source.is_file():
+        logger.error(f"Source is not a file: {source}", indent=True)
+        counters['errors'] += 1
+        return
+
+    had_backup = False
+
+    # Check destination status
+    if dest.exists() or dest.is_symlink():
+        if dest.is_symlink() and is_managed_symlink(dest, dotfiles_dir):
+            target = dest.readlink()
+            if not target.is_absolute():
+                target = (dest.parent / target).resolve()
+            if target == source:
+                logger.debug(f"Already installed: {source_name}")
+                logger.info("Skipped (already installed)", indent=True)
+                counters['skipped'] += 1
+                return
+            else:
+                logger.warning(f"Symlink exists but points to different location: {dest} -> {target}", indent=True)
+
+        if dest.exists() and not dest.is_symlink():
+            if kind == 'dir' and dest.is_file():
+                logger.error("Destination is a file, cannot replace with directory", indent=True)
+                counters['errors'] += 1
+                return
+
+            if kind == 'file' and dest.is_dir():
+                logger.error("Destination is a directory, cannot replace with file", indent=True)
+                counters['errors'] += 1
+                return
+
+            backup = backup_path(dest, dry_run=args.dry_run, logger=logger)
+            had_backup = bool(backup)
+            if backup:
+                counters['backed_up'] += 1
+                label = "directory" if kind == 'dir' else "file"
+                logger.success(f"Backed up existing {label}", indent=True)
+
+        elif dest.is_symlink() and not dest.exists():
+            logger.warning("Removing broken symlink", indent=True)
+            if not args.dry_run:
+                dest.unlink()
+
+    # Create symlink
+    logger.debug(f"Creating symlink: {dest} -> {source}")
+    if create_symlink(source, dest, dry_run=args.dry_run, logger=logger):
+        logger.success("Created symlink", indent=True)
+        counters['installed'] += 1
+        if not args.dry_run:
+            state.add(kind, source_name, dest, backup_created=had_backup)
+    else:
+        counters['errors'] += 1
 
 
 def main():
@@ -65,159 +142,23 @@ Examples:
 
     # Counters for summary
     total = len(CONFIG_DIRS) + len(CONFIG_FILES)
-    installed = 0
-    skipped = 0
-    backed_up = 0
+    counters = {'installed': 0, 'skipped': 0, 'backed_up': 0, 'errors': 0}
     generated = []
-    errors = 0
 
     print()
     logger.info(f"Installing {total} items...")
     print()
 
-    # Process directories
+    # Process directories and files
     for source_name, dest in CONFIG_DIRS.items():
-        source = dotfiles_dir / source_name
+        process_item(source_name, dest, 'dir', dotfiles_dir, state, args, logger, counters)
 
-        logger.header(f"Installing {source_name}...")
-
-        logger.debug(f"Processing directory: {source_name}")
-        logger.debug(f"  Source: {source}")
-        logger.debug(f"  Destination: {dest}")
-
-        # Validate source exists
-        if not source.exists():
-            logger.error(f"Source directory does not exist: {source}", indent=True)
-            errors += 1
-            continue
-
-        if not source.is_dir():
-            logger.error(f"Source is not a directory: {source}", indent=True)
-            errors += 1
-            continue
-
-        # Track if this specific item had a backup created
-        had_backup = False
-
-        # Check destination status
-        if dest.exists() or dest.is_symlink():
-            # Check if it's already a symlink to our dotfiles
-            if dest.is_symlink() and is_managed_symlink(dest, dotfiles_dir):
-                target = dest.readlink()
-                if not target.is_absolute():
-                    target = (dest.parent / target).resolve()
-
-                if target == source:
-                    logger.debug(f"Already installed: {source_name}")
-                    logger.info(f"Skipped (already installed)", indent=True)
-                    skipped += 1
-                    continue
-                else:
-                    logger.warning(f"Symlink exists but points to different location: {dest} -> {target}", indent=True)
-
-            # Check if it's a directory or file
-            if dest.exists() and dest.is_dir() and not dest.is_symlink():
-                # It's a real directory, need to back it up
-                backup = backup_path(dest, dry_run=args.dry_run, logger=logger)
-                had_backup = bool(backup)
-                if backup:
-                    backed_up += 1
-                    logger.success(f"Backed up existing directory", indent=True)
-
-            elif dest.exists() and dest.is_file():
-                logger.error(f"Destination is a file, cannot replace with directory", indent=True)
-                errors += 1
-                continue
-
-            elif dest.is_symlink() and not dest.exists():
-                # Broken symlink
-                logger.warning(f"Removing broken symlink", indent=True)
-                if not args.dry_run:
-                    dest.unlink()
-
-        # Create symlink
-        logger.debug(f"Creating symlink: {dest} -> {source}")
-
-        if create_symlink(source, dest, dry_run=args.dry_run, logger=logger):
-            logger.success(f"Created symlink", indent=True)
-            installed += 1
-
-            # Save to state
-            if not args.dry_run:
-                state.add('dir', source_name, dest, backup_created=had_backup)
-        else:
-            errors += 1
-
-    # Process files
     for source_name, dest in CONFIG_FILES.items():
-        source = dotfiles_dir / source_name
-
-        logger.header(f"Installing {source_name}...")
-
-        logger.debug(f"Processing file: {source_name}")
-        logger.debug(f"  Source: {source}")
-        logger.debug(f"  Destination: {dest}")
-
-        # Validate source exists
-        if not source.exists():
-            logger.error(f"Source file does not exist: {source}", indent=True)
-            errors += 1
-            continue
-
-        if not source.is_file():
-            logger.error(f"Source is not a file: {source}", indent=True)
-            errors += 1
-            continue
-
-        # Track if this specific item had a backup created
-        had_backup = False
-
-        # Check destination status
-        if dest.exists() or dest.is_symlink():
-            # Check if it's already a symlink to our dotfiles
-            if dest.is_symlink() and is_managed_symlink(dest, dotfiles_dir):
-                target = dest.readlink()
-                if not target.is_absolute():
-                    target = (dest.parent / target).resolve()
-
-                if target == source:
-                    logger.debug(f"Already installed: {source_name}")
-                    logger.info(f"Skipped (already installed)", indent=True)
-                    skipped += 1
-                    continue
-
-            # Check if it's a file or directory
-            if dest.exists() and dest.is_file() and not dest.is_symlink():
-                # It's a real file, need to back it up
-                backup = backup_path(dest, dry_run=args.dry_run, logger=logger)
-                had_backup = bool(backup)
-                if backup:
-                    backed_up += 1
-                    logger.success(f"Backed up existing file", indent=True)
-
-            elif dest.is_symlink() and not dest.exists():
-                # Broken symlink
-                logger.warning(f"Removing broken symlink", indent=True)
-                if not args.dry_run:
-                    dest.unlink()
-
-        # Create symlink
-        logger.debug(f"Creating symlink: {dest} -> {source}")
-
-        if create_symlink(source, dest, dry_run=args.dry_run, logger=logger):
-            logger.success(f"Created symlink", indent=True)
-            installed += 1
-
-            # Save to state
-            if not args.dry_run:
-                state.add('file', source_name, dest, backup_created=had_backup)
-        else:
-            errors += 1
+        process_item(source_name, dest, 'file', dotfiles_dir, state, args, logger, counters)
 
     # Special handling for SSH: ensure ~/.ssh permissions are correct
     ssh_dir = Path.home() / '.ssh'
     if ssh_dir.exists():
-        import os
         current_perms = oct(ssh_dir.stat().st_mode)[-3:]
         if current_perms != '700':
             logger.debug(f"Fixing ~/.ssh permissions: {current_perms} -> 700")
@@ -243,7 +184,6 @@ Examples:
     if zellij_config_dir.exists() and zellij_shared.exists():
         logger.debug("Generating zellij config.kdl from shared + local...")
         if not args.dry_run:
-            import shutil
             shutil.copy2(str(zellij_shared), str(zellij_config))
             if zellij_local.exists():
                 with open(str(zellij_config), 'a') as f:
@@ -255,7 +195,7 @@ Examples:
         generated.append(f"zellij/config.kdl ({detail})")
 
     # Save state file
-    if not args.dry_run and installed > 0:
+    if not args.dry_run:
         logger.debug(f"Saving state to {state.state_file}")
         state.save()
 
@@ -264,22 +204,22 @@ Examples:
     print("=" * 60)
     logger.info("Installation Summary:")
     print(f"  Total items:     {total}")
-    print(f"  Installed:       {installed}")
-    print(f"  Skipped:         {skipped}")
-    print(f"  Backed up:       {backed_up}")
+    print(f"  Installed:       {counters['installed']}")
+    print(f"  Skipped:         {counters['skipped']}")
+    print(f"  Backed up:       {counters['backed_up']}")
     print(f"  Generated:       {len(generated)}")
     if generated:
         for item in generated:
             print(f"    - {item}")
-    if errors > 0:
-        print(f"  Errors:          {errors}")
+    if counters['errors'] > 0:
+        print(f"  Errors:          {counters['errors']}")
     print("=" * 60)
 
     if args.dry_run:
         print()
         logger.info("This was a DRY RUN - no changes were made")
 
-    if installed > 0 and not args.dry_run:
+    if counters['installed'] > 0 and not args.dry_run:
         print()
         logger.success("Installation complete!")
         print()
@@ -288,9 +228,9 @@ Examples:
         print("  - Open nvim to initialize plugins (first run)")
         print("  - Auto-generated files (fish_variables, lazy-lock.json) will be created automatically")
 
-    if errors > 0:
+    if counters['errors'] > 0:
         print()
-        logger.error(f"Installation completed with {errors} error(s)")
+        logger.error(f"Installation completed with {counters['errors']} error(s)")
         sys.exit(1)
 
     sys.exit(0)
