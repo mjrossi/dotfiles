@@ -55,6 +55,11 @@ class Logger:
 
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
+        self.use_color = sys.stdout.isatty()
+
+    def _c(self, code: str) -> str:
+        """Return color code only when writing to a TTY."""
+        return code if self.use_color else ""
 
     def header(self, msg: str) -> None:
         """Print section header without prefix"""
@@ -63,27 +68,27 @@ class Logger:
     def info(self, msg: str, indent: bool = False) -> None:
         """Print informational message in blue"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{Colors.BLUE}ℹ{Colors.RESET} {msg}")
+        print(f"{prefix}{self._c(Colors.BLUE)}ℹ{self._c(Colors.RESET)} {msg}")
 
     def success(self, msg: str, indent: bool = False) -> None:
         """Print success message in green"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{Colors.GREEN}✓{Colors.RESET} {msg}")
+        print(f"{prefix}{self._c(Colors.GREEN)}✓{self._c(Colors.RESET)} {msg}")
 
     def warning(self, msg: str, indent: bool = False) -> None:
         """Print warning message in yellow"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{Colors.YELLOW}⚠{Colors.RESET} {msg}")
+        print(f"{prefix}{self._c(Colors.YELLOW)}⚠{self._c(Colors.RESET)} {msg}")
 
     def error(self, msg: str, indent: bool = False) -> None:
         """Print error message in red"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{Colors.RED}✗{Colors.RESET} {msg}", file=sys.stderr)
+        print(f"{prefix}{self._c(Colors.RED)}✗{self._c(Colors.RESET)} {msg}", file=sys.stderr)
 
     def debug(self, msg: str) -> None:
         """Print debug message in gray (only shown in verbose mode)"""
         if self.verbose:
-            print(f"{Colors.GRAY}[DEBUG]{Colors.RESET} {msg}")
+            print(f"{self._c(Colors.GRAY)}[DEBUG]{self._c(Colors.RESET)} {msg}")
 
 
 class StateManager:
@@ -93,10 +98,10 @@ class StateManager:
         self.state_file = state_file
         self.installations: List[Dict[str, any]] = []
 
-    def add(self, type: str, source: str, dest: Path, backup_created: bool) -> None:
+    def add(self, item_type: str, source: str, dest: Path, backup_created: bool) -> None:
         """Add an installation record"""
         self.installations.append({
-            'type': type,
+            'type': item_type,
             'source': source,
             'destination': str(dest),
             'backup_created': backup_created,
@@ -104,10 +109,14 @@ class StateManager:
         })
 
     def save(self) -> None:
-        """Save state to JSON file"""
+        """Save state to JSON file, merging with any previously recorded entries."""
+        existing = self.load()
+        merged = {e['destination']: e for e in existing}
+        for entry in self.installations:
+            merged[entry['destination']] = entry
         state = {
             'version': '1.0',
-            'installed': self.installations
+            'installed': list(merged.values())
         }
         with open(self.state_file, 'w') as f:
             json.dump(state, f, indent=2)
@@ -183,10 +192,13 @@ def restore_backup(path: Path, dry_run: bool = False, logger: Optional[Logger] =
     backup = Path(f"{path}.bak")
 
     if not backup.exists():
-        # Try numbered backups
-        backup = Path(f"{path}.bak.1")
-        if not backup.exists():
+        # Find the highest-numbered backup (mirrors the numbering in backup_path)
+        counter = 1
+        while Path(f"{path}.bak.{counter}").exists():
+            counter += 1
+        if counter == 1:
             return False
+        backup = Path(f"{path}.bak.{counter - 1}")
 
     if logger:
         logger.debug(f"Restoring backup {backup} -> {path}")
