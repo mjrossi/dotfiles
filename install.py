@@ -4,6 +4,7 @@ Dotfiles installation script - creates symlinks for configuration files and dire
 """
 
 import argparse
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -11,7 +12,7 @@ from pathlib import Path
 # Import from lib.common
 from lib.common import (
     CONFIG_DIRS, CONFIG_FILES, Logger, StateManager,
-    get_dotfiles_dir, backup_path, create_symlink, is_managed_symlink, prompt_user
+    get_dotfiles_dir, backup_path, create_symlink, is_managed_symlink
 )
 
 
@@ -62,9 +63,9 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
                 counters['errors'] += 1
                 return
 
-            if not prompt_user(f"Back up and replace existing {dest.name}?", force=args.force):
-                logger.info("Skipped by user", indent=True)
-                counters['skipped'] += 1
+            if kind == 'file' and dest.is_dir():
+                logger.error("Destination is a directory, cannot replace with file", indent=True)
+                counters['errors'] += 1
                 return
 
             backup = backup_path(dest, dry_run=args.dry_run, logger=logger)
@@ -158,7 +159,6 @@ Examples:
     # Special handling for SSH: ensure ~/.ssh permissions are correct
     ssh_dir = Path.home() / '.ssh'
     if ssh_dir.exists():
-        import os
         current_perms = oct(ssh_dir.stat().st_mode)[-3:]
         if current_perms != '700':
             logger.debug(f"Fixing ~/.ssh permissions: {current_perms} -> 700")

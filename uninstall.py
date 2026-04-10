@@ -172,13 +172,9 @@ Examples:
             removed += 1
 
             # Try to restore backup
-            backup_path_check = Path(f"{dest}.bak")
-            if backup_path_check.exists():
-                if restore_backup(dest, dry_run=args.dry_run, logger=logger):
-                    logger.success(f"Restored backup", indent=True)
-                    restored += 1
-                else:
-                    logger.warning(f"Could not restore backup", indent=True)
+            if restore_backup(dest, dry_run=args.dry_run, logger=logger):
+                logger.success(f"Restored backup", indent=True)
+                restored += 1
             else:
                 logger.debug(f"No backup found for {source_name}")
 

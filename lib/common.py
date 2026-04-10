@@ -5,7 +5,7 @@ Requires: Python 3.6+ (for f-strings and pathlib)
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import shutil
 import sys
 import json
@@ -55,11 +55,13 @@ class Logger:
 
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
-        self.use_color = sys.stdout.isatty()
+        self.use_color_stdout = sys.stdout.isatty()
+        self.use_color_stderr = sys.stderr.isatty()
 
-    def _c(self, code: str) -> str:
+    def _c(self, code: str, stream: str = "stdout") -> str:
         """Return color code only when writing to a TTY."""
-        return code if self.use_color else ""
+        use_color = self.use_color_stderr if stream == "stderr" else self.use_color_stdout
+        return code if use_color else ""
 
     def header(self, msg: str) -> None:
         """Print section header without prefix"""
@@ -83,7 +85,7 @@ class Logger:
     def error(self, msg: str, indent: bool = False) -> None:
         """Print error message in red"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{self._c(Colors.RED)}✗{self._c(Colors.RESET)} {msg}", file=sys.stderr)
+        print(f"{prefix}{self._c(Colors.RED, 'stderr')}✗{self._c(Colors.RESET, 'stderr')} {msg}", file=sys.stderr)
 
     def debug(self, msg: str) -> None:
         """Print debug message in gray (only shown in verbose mode)"""
@@ -96,7 +98,7 @@ class StateManager:
 
     def __init__(self, state_file: Path = STATE_FILE):
         self.state_file = state_file
-        self.installations: List[Dict[str, any]] = []
+        self.installations: List[Dict[str, Any]] = []
 
     def add(self, item_type: str, source: str, dest: Path, backup_created: bool) -> None:
         """Add an installation record"""
@@ -109,11 +111,8 @@ class StateManager:
         })
 
     def save(self) -> None:
-        """Save state to JSON file, merging with any previously recorded entries."""
-        existing = self.load()
-        merged = {e['destination']: e for e in existing}
-        for entry in self.installations:
-            merged[entry['destination']] = entry
+        """Save state to JSON file (deduplicates by destination)."""
+        merged = {e['destination']: e for e in self.installations}
         state = {
             'version': '1.0',
             'installed': list(merged.values())
@@ -121,7 +120,7 @@ class StateManager:
         with open(self.state_file, 'w') as f:
             json.dump(state, f, indent=2)
 
-    def load(self) -> List[Dict[str, any]]:
+    def load(self) -> List[Dict[str, Any]]:
         """Load state from JSON file"""
         if not self.state_file.exists():
             return []
@@ -189,16 +188,17 @@ def restore_backup(path: Path, dry_run: bool = False, logger: Optional[Logger] =
     Returns:
         True if backup was restored, False otherwise
     """
-    backup = Path(f"{path}.bak")
+    # Find the highest-numbered backup first (newest)
+    counter = 1
+    while Path(f"{path}.bak.{counter}").exists():
+        counter += 1
 
-    if not backup.exists():
-        # Find the highest-numbered backup (mirrors the numbering in backup_path)
-        counter = 1
-        while Path(f"{path}.bak.{counter}").exists():
-            counter += 1
-        if counter == 1:
-            return False
+    if counter > 1:
         backup = Path(f"{path}.bak.{counter - 1}")
+    elif Path(f"{path}.bak").exists():
+        backup = Path(f"{path}.bak")
+    else:
+        return False
 
     if logger:
         logger.debug(f"Restoring backup {backup} -> {path}")
