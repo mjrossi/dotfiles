@@ -9,7 +9,7 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "cargo:toml-cli" = "latest"
 "cargo:zellij" = "latest"
 "go:github.com/fullstorydev/grpcurl/cmd/grpcurl" = "latest"
-go = { version = "1.26.0", postinstall = "mise install_go_tools" }
+go = { version = "1.26.1", postinstall = "mise install_go_tools" }
 gum = "latest"
 jq = "latest"
 just = "latest"
@@ -32,11 +32,11 @@ python.uv_venv_auto = true
 
 [env]
 MISE_ENV = "development"
-MACOSX_DEPLOYMENT_TARGET = "26.4"  # bump after major macOS upgrades (sw_vers -productVersion)
+MACOSX_DEPLOYMENT_TARGET = "26.4" # bump after major macOS upgrades (sw_vers -productVersion)
 
 [tasks.install_go_tools]
 description = "Install Go Tools Specific to a Version of Go"
 run = [
-	"go install github.com/go-delve/delve/cmd/dlv@latest",
-	"go install golang.org/x/tools/gopls@latest",
+  "go install github.com/go-delve/delve/cmd/dlv@latest",
+  "go install golang.org/x/tools/gopls@latest",
 ]
