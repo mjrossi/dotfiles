@@ -6,6 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Personal dotfiles managed via symlinks. Two Python scripts (`install.py`, `uninstall.py`) create/remove symlinks from `~/.config/` and `~/` to this repo. No external Python dependencies — stdlib only, Python 3.6+.
 
+## Package Management Policy
+
+Split between `mise` and `brew`:
+
+- **`mise`** — language runtimes and developer CLIs. Anything available via a mise backend (`cargo:`, `go:`, `pipx:`, `npm:`, native plugins) belongs here. Config: `mise/config.toml`.
+- **`brew`** — only: `mise` (bootstrap), `fish` (login shell), GPG/macOS integration (`gnupg`, `pinentry-mac`), third-party taps, trivial unix utilities (`age`, `wget`, `p7zip`, `rename`, `telnet`, `wimlib`). Tracked in `Brewfile`.
+
+When adding a tool: try `mise` first. Only use `brew` if it requires system integration or isn't available via any mise backend.
+
+`install.py` runs `brew bundle install` (never `cleanup`) — additive only, leaves other brew packages alone. Skip with `--skip-brew` or `DOTFILES_SKIP_BREW=1`; no-ops when `brew` isn't on PATH.
+
 ## Commands
 
 ```bash

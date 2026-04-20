@@ -9,8 +9,18 @@ Personal configuration files managed via symlinks. This repository contains conf
 - **Zellij** - Terminal multiplexer configuration
 - **Ghostty** - Terminal emulator configuration (Tokyo Night theme)
 - **mise** - Runtime version manager configuration
+- **Brewfile** - Minimal Homebrew footprint (bootstrap + system integration only)
 - **Git** - Global gitconfig and gitignore
 - **SSH** - SSH config with 1Password agent integration
+
+## Package Management Policy
+
+Global tooling is split between `mise` and `brew`:
+
+- **`mise` owns** language runtimes and developer CLIs — anything version-sensitive or installable via a mise backend (`cargo:`, `go:`, `pipx:`, `npm:`, native plugins). Config lives in `mise/config.toml`.
+- **`brew` owns** only what can't live in mise cleanly: `mise` itself (bootstrap), `fish` (login shell), GPG/macOS integration (`gnupg`, `pinentry-mac`), third-party taps, and a handful of trivial unix utilities. Tracked in `Brewfile`.
+
+`install.py` runs `brew bundle` against the committed `Brewfile` — it only installs what's missing and **never** removes packages not listed, so other tools installed ad-hoc on a machine are left alone. Skip with `--skip-brew` or `DOTFILES_SKIP_BREW=1` (or simply run on a machine without Homebrew — it no-ops).
 
 ## Quick Start
 
@@ -187,11 +197,13 @@ Installs dotfiles by creating symlinks to this repository.
 - `--dry-run` - Preview changes without making them
 - `--verbose` - Show detailed debug output
 - `--force` - Override prompts and proceed automatically
+- `--skip-brew` - Skip the Brewfile step (also: `DOTFILES_SKIP_BREW=1`)
 
 **What it does:**
 1. Backs up any existing files/directories with `.bak` suffix
 2. Creates symlinks from your home directory to this repo
-3. Tracks installation state in `.dotfiles-state` (JSON)
+3. Installs anything missing from the `Brewfile` (idempotent; skipped silently if `brew` isn't on PATH)
+4. Tracks installation state in `.dotfiles-state` (JSON)
 
 **Examples:**
 ```bash

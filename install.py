@@ -6,6 +6,7 @@ Dotfiles installation script - creates symlinks for configuration files and dire
 import argparse
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -91,6 +92,55 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
         counters['errors'] += 1
 
 
+def install_brewfile(dotfiles_dir, args, logger):
+    """Install Brewfile packages idempotently.
+
+    Skips silently when brew is unavailable, the opt-out flag/env is set,
+    or the Brewfile is already satisfied. Never runs `cleanup`, so packages
+    present on the machine but absent from the Brewfile are left alone.
+    """
+    if args.skip_brew or os.environ.get('DOTFILES_SKIP_BREW'):
+        logger.info("Skipping Brewfile (opt-out set)")
+        return
+
+    brewfile = dotfiles_dir / 'Brewfile'
+    if not brewfile.exists():
+        logger.debug("No Brewfile found, skipping")
+        return
+
+    if shutil.which('brew') is None:
+        logger.info("brew not found on PATH, skipping Brewfile")
+        return
+
+    logger.header("Checking Brewfile...")
+    check = subprocess.run(
+        ['brew', 'bundle', 'check', f'--file={brewfile}'],
+        capture_output=True, text=True,
+    )
+    if check.returncode == 0:
+        logger.success("Brewfile dependencies already satisfied", indent=True)
+        return
+
+    if args.dry_run:
+        logger.info(f"Would run: brew bundle install --file={brewfile}", indent=True)
+        return
+
+    logger.info("Installing missing Brewfile packages...", indent=True)
+    install_cmd = ['brew', 'bundle', 'install', f'--file={brewfile}']
+    if args.verbose:
+        result = subprocess.run(install_cmd)
+    else:
+        result = subprocess.run(install_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            sys.stdout.write(result.stdout or '')
+            sys.stderr.write(result.stderr or '')
+
+    if result.returncode == 0:
+        logger.success("Brewfile installed", indent=True)
+    else:
+        logger.error(f"brew bundle exited with status {result.returncode}", indent=True)
+
+
 def main():
     """Main installation logic"""
     # Parse command-line arguments
@@ -112,6 +162,8 @@ Examples:
                         help='Show detailed output')
     parser.add_argument('--force', action='store_true',
                         help='Override without prompts')
+    parser.add_argument('--skip-brew', action='store_true',
+                        help='Skip Brewfile install step (also: DOTFILES_SKIP_BREW=1)')
 
     args = parser.parse_args()
 
@@ -193,6 +245,9 @@ Examples:
         detail = "shared + local" if zellij_local.exists() else "shared"
         logger.success(f"Generated zellij/config.kdl from {detail}", indent=True)
         generated.append(f"zellij/config.kdl ({detail})")
+
+    # Install Brewfile packages (idempotent, opt-out friendly)
+    install_brewfile(dotfiles_dir, args, logger)
 
     # Save state file
     if not args.dry_run:

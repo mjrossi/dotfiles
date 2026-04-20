@@ -9,10 +9,13 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "cargo:toml-cli" = "latest"
 "cargo:zellij" = "latest"
 "go:github.com/fullstorydev/grpcurl/cmd/grpcurl" = "latest"
+"pipx:httpie" = "latest"
+gh = "latest"
 go = { version = "1.26.1", postinstall = "mise install_go_tools" }
 gum = "latest"
 jq = "latest"
 just = "latest"
+neovim = "latest"
 node = "25.6.1"
 python = "3.14.3"
 ruby = "4.0.1"
