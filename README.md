@@ -1,5 +1,7 @@
 # Dotfiles
 
+[![tests](https://github.com/mjrossi/dotfiles/actions/workflows/tests.yml/badge.svg)](https://github.com/mjrossi/dotfiles/actions/workflows/tests.yml)
+
 Personal configuration files managed via symlinks. This repository contains configurations for Fish shell, Neovim, Zellij, Ghostty, mise, Git, and SSH, with Python scripts to automatically install and manage them across machines.
 
 ## What's Included
