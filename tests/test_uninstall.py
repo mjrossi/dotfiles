@@ -3,9 +3,11 @@
 Unit tests for uninstall.py - dotfiles uninstallation script.
 """
 
+import io
 import unittest
 import tempfile
 import shutil
+from contextlib import redirect_stderr
 from pathlib import Path
 import sys
 
@@ -308,6 +310,62 @@ class TestDryRunMode(unittest.TestCase):
         # Backup path should be returned but not exist
         if backup:
             self.assertFalse(backup.exists())
+
+
+class TestRemoveSymlinkRefusesExternal(unittest.TestCase):
+    """Safety: uninstall must never remove a symlink pointing outside dotfiles."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.root = Path(self.test_dir)
+        self.dotfiles_dir = self.root / "dotfiles"
+        self.dotfiles_dir.mkdir()
+        self.logger = Logger(verbose=False)
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_external_symlink_is_not_removed(self):
+        # Simulates a state entry pointing at a symlink the user created
+        # that targets something outside the dotfiles repo.
+        external_target = self.root / "other-repo" / "config"
+        external_target.mkdir(parents=True)
+        dest = self.root / "home-symlink"
+        dest.symlink_to(external_target)
+
+        with redirect_stderr(io.StringIO()):
+            result = remove_symlink(dest, self.dotfiles_dir,
+                                    dry_run=False, logger=self.logger)
+
+        self.assertFalse(result)
+        self.assertTrue(dest.is_symlink(), "external symlink must not be removed")
+
+
+class TestRestoreBackupMissing(unittest.TestCase):
+    """restore_backup returns False cleanly when no backup exists."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.config_dir = Path(self.test_dir)
+        self.logger = Logger(verbose=False)
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_returns_false_when_no_backup(self):
+        dest = self.config_dir / "fish"
+
+        result = restore_backup(dest, dry_run=False, logger=self.logger)
+
+        self.assertFalse(result)
+        self.assertFalse(dest.exists())
+
+    def test_dry_run_returns_false_when_no_backup(self):
+        dest = self.config_dir / "fish"
+
+        result = restore_backup(dest, dry_run=True, logger=self.logger)
+
+        self.assertFalse(result)
 
 
 if __name__ == '__main__':
