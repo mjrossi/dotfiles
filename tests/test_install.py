@@ -207,86 +207,99 @@ class TestRestoreBackupNumbered(unittest.TestCase):
 
 
 class TestZellijSpecialHandling(unittest.TestCase):
-    """Test special handling for zellij config.kdl creation."""
+    """Exercise install.generate_zellij_config against a sandboxed filesystem."""
 
     def setUp(self):
-        """Create temporary directories for testing."""
         self.test_dir = tempfile.mkdtemp()
         self.dotfiles_dir = Path(self.test_dir) / "dotfiles"
         self.home_dir = Path(self.test_dir) / "home"
         self.config_dir = self.home_dir / ".config"
 
-        # Create directory structure
         self.dotfiles_dir.mkdir()
         self.home_dir.mkdir()
         self.config_dir.mkdir()
 
-        # Create zellij dotfiles
+        # Real on-disk zellij dir in the dotfiles repo, plus a symlink from
+        # ~/.config/zellij to it — same shape as after `./install.py` runs.
         zellij_dir = self.dotfiles_dir / "zellij"
         zellij_dir.mkdir()
         (zellij_dir / "config.shared.kdl").write_text("# shared zellij config")
 
-        # Symlink zellij directory
-        zellij_dest = self.config_dir / "zellij"
-        zellij_dest.symlink_to(zellij_dir)
+        self.zellij_dest = self.config_dir / "zellij"
+        self.zellij_dest.symlink_to(zellij_dir)
 
         self.logger = Logger(verbose=False)
+        # Silence logger output
+        self._stdout_ctx = redirect_stdout(io.StringIO())
+        self._stdout_ctx.__enter__()
 
     def tearDown(self):
-        """Clean up temporary directories."""
+        self._stdout_ctx.__exit__(None, None, None)
         shutil.rmtree(self.test_dir)
 
     def test_config_kdl_created_from_shared(self):
-        """Test that config.kdl is created from config.shared.kdl."""
-        zellij_config = self.config_dir / "zellij" / "config.kdl"
-        zellij_shared = self.config_dir / "zellij" / "config.shared.kdl"
-
-        # Simulate install.py logic: always regenerate
-        if zellij_shared.exists():
-            shutil.copy2(zellij_shared, zellij_config)
-
-        self.assertTrue(zellij_config.exists())
-        self.assertEqual(
-            zellij_config.read_text(),
-            "# shared zellij config"
+        detail = install.generate_zellij_config(
+            self.zellij_dest, dry_run=False, logger=self.logger
         )
 
-    def test_config_kdl_always_regenerated(self):
-        """Test that config.kdl is always regenerated from shared."""
-        zellij_config = self.config_dir / "zellij" / "config.kdl"
-        zellij_shared = self.config_dir / "zellij" / "config.shared.kdl"
-
-        # Create existing stale config.kdl
-        zellij_config.write_text("# stale config")
-
-        # Simulate install.py logic: always regenerate
-        if zellij_shared.exists():
-            shutil.copy2(zellij_shared, zellij_config)
-
-        # Should have shared content, not stale
+        self.assertEqual(detail, "shared")
+        zellij_config = self.zellij_dest / "config.kdl"
+        self.assertTrue(zellij_config.exists())
         self.assertEqual(zellij_config.read_text(), "# shared zellij config")
 
+    def test_config_kdl_always_regenerated(self):
+        # Pre-existing stale config.kdl
+        (self.zellij_dest / "config.kdl").write_text("# stale config")
+
+        install.generate_zellij_config(
+            self.zellij_dest, dry_run=False, logger=self.logger
+        )
+
+        self.assertEqual(
+            (self.zellij_dest / "config.kdl").read_text(),
+            "# shared zellij config",
+        )
+
     def test_config_kdl_appends_local(self):
-        """Test that config.local.kdl is appended to generated config.kdl."""
-        zellij_config = self.config_dir / "zellij" / "config.kdl"
-        zellij_shared = self.config_dir / "zellij" / "config.shared.kdl"
-        zellij_local = self.config_dir / "zellij" / "config.local.kdl"
+        (self.zellij_dest / "config.local.kdl").write_text(
+            'web_server_cert "/path/to/cert.pem"\n'
+        )
 
-        # Create local overrides
-        zellij_local.write_text('web_server_cert "/path/to/cert.pem"\n')
+        detail = install.generate_zellij_config(
+            self.zellij_dest, dry_run=False, logger=self.logger
+        )
 
-        # Simulate install.py logic: regenerate + append local
-        if zellij_shared.exists():
-            shutil.copy2(zellij_shared, zellij_config)
-            if zellij_local.exists():
-                with open(zellij_config, 'a') as f:
-                    f.write('\n// Machine-specific overrides from config.local.kdl\n')
-                    with open(zellij_local) as local:
-                        f.write(local.read())
-
-        content = zellij_config.read_text()
+        self.assertEqual(detail, "shared + local")
+        content = (self.zellij_dest / "config.kdl").read_text()
         self.assertIn("# shared zellij config", content)
         self.assertIn("web_server_cert", content)
+
+    def test_returns_none_when_shared_missing(self):
+        # Remove the shared file — generator should no-op and return None
+        (self.dotfiles_dir / "zellij" / "config.shared.kdl").unlink()
+
+        detail = install.generate_zellij_config(
+            self.zellij_dest, dry_run=False, logger=self.logger
+        )
+
+        self.assertIsNone(detail)
+        self.assertFalse((self.zellij_dest / "config.kdl").exists())
+
+    def test_returns_none_when_dir_missing(self):
+        detail = install.generate_zellij_config(
+            self.config_dir / "not-zellij", dry_run=False, logger=self.logger
+        )
+
+        self.assertIsNone(detail)
+
+    def test_dry_run_does_not_write(self):
+        detail = install.generate_zellij_config(
+            self.zellij_dest, dry_run=True, logger=self.logger
+        )
+
+        # Detail is still reported so the summary line works, but no file written
+        self.assertEqual(detail, "shared")
+        self.assertFalse((self.zellij_dest / "config.kdl").exists())
 
 
 class TestIdempotency(unittest.TestCase):
@@ -376,80 +389,89 @@ class TestStatePreservation(unittest.TestCase):
         self.assertEqual(records, [])
 
 
-class TestSSHPermissions(unittest.TestCase):
-    """Test SSH directory permission handling."""
+class TestFixSSHPermissions(unittest.TestCase):
+    """Exercise install.fix_ssh_permissions against a sandboxed ~/.ssh."""
 
     def setUp(self):
-        """Create temporary directories for testing."""
         self.test_dir = tempfile.mkdtemp()
         self.ssh_dir = Path(self.test_dir) / ".ssh"
         self.ssh_dir.mkdir(mode=0o755)
+        self.logger = Logger(verbose=False)
+        # Silence logger output
+        self._stdout_ctx = redirect_stdout(io.StringIO())
+        self._stdout_ctx.__enter__()
 
     def tearDown(self):
-        """Clean up temporary directories."""
+        self._stdout_ctx.__exit__(None, None, None)
         shutil.rmtree(self.test_dir)
 
-    def test_ssh_dir_permissions_fixed(self):
-        """Test that ~/.ssh permissions are corrected to 700."""
-        current_perms = oct(self.ssh_dir.stat().st_mode)[-3:]
-        self.assertEqual(current_perms, '755')
+    def _perms(self, path):
+        return oct(os.stat(str(path)).st_mode)[-3:]
 
+    def test_dir_perms_fixed_from_755_to_700(self):
+        self.assertEqual(self._perms(self.ssh_dir), '755')
+
+        install.fix_ssh_permissions(self.ssh_dir, dry_run=False, logger=self.logger)
+
+        self.assertEqual(self._perms(self.ssh_dir), '700')
+
+    def test_dir_perms_already_correct_is_noop(self):
         os.chmod(str(self.ssh_dir), 0o700)
 
-        fixed_perms = oct(self.ssh_dir.stat().st_mode)[-3:]
-        self.assertEqual(fixed_perms, '700')
+        install.fix_ssh_permissions(self.ssh_dir, dry_run=False, logger=self.logger)
 
-    def test_ssh_dir_already_correct(self):
-        """Test that correct permissions are not changed."""
-        os.chmod(str(self.ssh_dir), 0o700)
+        self.assertEqual(self._perms(self.ssh_dir), '700')
 
-        current_perms = oct(self.ssh_dir.stat().st_mode)[-3:]
-        self.assertEqual(current_perms, '700')
+    def test_config_file_perms_fixed_to_600(self):
+        config = self.ssh_dir / "config"
+        config.write_text("Host example\n  User me\n")
+        os.chmod(str(config), 0o644)
 
+        install.fix_ssh_permissions(self.ssh_dir, dry_run=False, logger=self.logger)
 
-class TestSSHConfigFilePermissions(unittest.TestCase):
-    """Test ~/.ssh/config permission handling (600)."""
+        self.assertEqual(self._perms(config), '600')
 
-    def setUp(self):
-        self.test_dir = tempfile.mkdtemp()
-        self.ssh_dir = Path(self.test_dir) / ".ssh"
-        self.ssh_dir.mkdir(mode=0o700)
-        self.ssh_config = self.ssh_dir / "config"
-        self.ssh_config.write_text("Host example\n  User me\n")
-        os.chmod(str(self.ssh_config), 0o644)
+    def test_config_file_already_600_is_noop(self):
+        config = self.ssh_dir / "config"
+        config.write_text("Host example\n  User me\n")
+        os.chmod(str(config), 0o600)
 
-    def tearDown(self):
-        shutil.rmtree(self.test_dir)
+        install.fix_ssh_permissions(self.ssh_dir, dry_run=False, logger=self.logger)
 
-    def test_ssh_config_permissions_fixed(self):
-        """Permissions on ~/.ssh/config are corrected to 600."""
-        current_perms = oct(os.stat(str(self.ssh_config)).st_mode)[-3:]
-        self.assertEqual(current_perms, '644')
+        self.assertEqual(self._perms(config), '600')
 
-        os.chmod(str(self.ssh_config), 0o600)
-
-        fixed_perms = oct(os.stat(str(self.ssh_config)).st_mode)[-3:]
-        self.assertEqual(fixed_perms, '600')
-
-    def test_ssh_config_symlink_permissions_fixed(self):
-        """install.py also fixes perms when ~/.ssh/config is a symlink to the repo."""
-        # Simulate the post-symlink state: ssh/config is a symlink into dotfiles
-        dotfiles_ssh_dir = Path(self.test_dir) / "dotfiles" / "ssh"
-        dotfiles_ssh_dir.mkdir(parents=True)
-        real_config = dotfiles_ssh_dir / "config"
+    def test_config_as_symlink_to_repo_has_target_perms_fixed(self):
+        # Post-install shape: ~/.ssh/config is a symlink into the dotfiles repo
+        dotfiles_ssh = Path(self.test_dir) / "dotfiles" / "ssh"
+        dotfiles_ssh.mkdir(parents=True)
+        real_config = dotfiles_ssh / "config"
         real_config.write_text("Host example\n  User me\n")
         os.chmod(str(real_config), 0o644)
 
-        self.ssh_config.unlink()
-        self.ssh_config.symlink_to(real_config)
+        config_link = self.ssh_dir / "config"
+        config_link.symlink_to(real_config)
 
-        # install.py uses os.stat (follows symlink) and chmods the resolved path
-        config_perms = oct(os.stat(str(self.ssh_config)).st_mode)[-3:]
-        self.assertEqual(config_perms, '644')
+        install.fix_ssh_permissions(self.ssh_dir, dry_run=False, logger=self.logger)
 
-        os.chmod(str(self.ssh_config), 0o600)
+        # fix_ssh_permissions uses os.stat (follows symlinks) + os.chmod, which
+        # also follows the link, so the target gets the 600.
+        self.assertEqual(self._perms(real_config), '600')
 
-        self.assertEqual(oct(os.stat(str(self.ssh_config)).st_mode)[-3:], '600')
+    def test_dry_run_does_not_change_perms(self):
+        config = self.ssh_dir / "config"
+        config.write_text("Host example\n  User me\n")
+        os.chmod(str(config), 0o644)
+
+        install.fix_ssh_permissions(self.ssh_dir, dry_run=True, logger=self.logger)
+
+        self.assertEqual(self._perms(self.ssh_dir), '755')
+        self.assertEqual(self._perms(config), '644')
+
+    def test_missing_ssh_dir_is_noop(self):
+        # Should not raise even when ~/.ssh doesn't exist
+        install.fix_ssh_permissions(
+            Path(self.test_dir) / "no-ssh", dry_run=False, logger=self.logger
+        )
 
 
 class TestProcessItem(unittest.TestCase):

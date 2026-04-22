@@ -7,7 +7,7 @@ import io
 import unittest
 import tempfile
 import shutil
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 import sys
 
@@ -18,6 +18,7 @@ from lib.common import (
     restore_backup, remove_symlink, is_managed_symlink,
     Logger
 )
+import uninstall
 
 
 class TestUninstallWithBackups(unittest.TestCase):
@@ -132,21 +133,19 @@ class TestUninstallFreshMachine(unittest.TestCase):
 
 
 class TestMachineSpecificFilePreservation(unittest.TestCase):
-    """Test preservation of machine-specific config files."""
+    """Exercise uninstall.find_preserved_file + preserve_file on real state."""
 
     def setUp(self):
-        """Create temporary directories with machine-specific files."""
         self.test_dir = tempfile.mkdtemp()
         self.dotfiles_dir = Path(self.test_dir) / "dotfiles"
         self.home_dir = Path(self.test_dir) / "home"
         self.config_dir = self.home_dir / ".config"
 
-        # Create directory structure
         self.dotfiles_dir.mkdir()
         self.home_dir.mkdir()
         self.config_dir.mkdir()
 
-        # Create fake dotfiles with machine-specific files
+        # Dotfiles sources with machine-specific files alongside the shared ones
         fish_dir = self.dotfiles_dir / "fish"
         fish_dir.mkdir()
         (fish_dir / "config.fish").write_text("# fish config")
@@ -157,117 +156,119 @@ class TestMachineSpecificFilePreservation(unittest.TestCase):
         (zellij_dir / "config.shared.kdl").write_text("# shared")
         (zellij_dir / "config.kdl").write_text("# machine-specific")
 
-        # Create symlinks
+        # Post-install state: destinations are symlinks to the dotfiles dirs
         (self.config_dir / "fish").symlink_to(fish_dir)
         (self.config_dir / "zellij").symlink_to(zellij_dir)
 
         self.logger = Logger(verbose=False)
+        # Silence uninstall helpers' info-level output
+        self._stdout_ctx = redirect_stdout(io.StringIO())
+        self._stdout_ctx.__enter__()
 
     def tearDown(self):
-        """Clean up temporary directories."""
+        self._stdout_ctx.__exit__(None, None, None)
         shutil.rmtree(self.test_dir)
 
     def test_preserve_fish_local_config(self):
-        """Test that fish/config.local.fish is preserved during uninstall."""
         fish_dest = self.config_dir / "fish"
-        local_config = self.dotfiles_dir / "fish" / "config.local.fish"
 
-        # Machine-specific file should exist in symlinked directory
-        self.assertTrue(local_config.exists())
+        found = uninstall.find_preserved_file(
+            'fish', 'dir', fish_dest, self.dotfiles_dir
+        )
+        self.assertIsNotNone(found)
+        self.assertEqual(found['filename'], 'config.local.fish')
+        self.assertEqual(found['source'], self.dotfiles_dir / "fish" / "config.local.fish")
 
-        # Simulate uninstall.py logic
-        files_to_preserve = []
-        if local_config.exists() and local_config.is_file():
-            files_to_preserve.append({
-                'source': local_config,
-                'dest': fish_dest,
-                'filename': 'config.local.fish'
-            })
-
-        # Remove symlink
         remove_symlink(fish_dest, self.dotfiles_dir, dry_run=False, logger=self.logger)
 
-        # Create target directory (no backup scenario)
-        fish_dest.mkdir(parents=True, exist_ok=True)
+        ok = uninstall.preserve_file(found, fish_dest, dry_run=False, logger=self.logger)
 
-        # Copy preserved files
-        for item in files_to_preserve:
-            target = item['dest'] / item['filename']
-            shutil.copy2(item['source'], target)
-
-        # Verify preserved file exists in new location
+        self.assertTrue(ok)
         preserved_file = fish_dest / "config.local.fish"
         self.assertTrue(preserved_file.exists())
         self.assertEqual(preserved_file.read_text(), "# machine-specific")
 
     def test_preserve_zellij_config_kdl(self):
-        """Test that zellij/config.kdl is preserved during uninstall."""
         zellij_dest = self.config_dir / "zellij"
-        config_kdl = self.dotfiles_dir / "zellij" / "config.kdl"
 
-        # Machine-specific file should exist
-        self.assertTrue(config_kdl.exists())
+        found = uninstall.find_preserved_file(
+            'zellij', 'dir', zellij_dest, self.dotfiles_dir
+        )
+        self.assertIsNotNone(found)
+        self.assertEqual(found['filename'], 'config.kdl')
 
-        # Simulate uninstall.py logic
-        files_to_preserve = []
-        if config_kdl.exists() and config_kdl.is_file():
-            files_to_preserve.append({
-                'source': config_kdl,
-                'dest': zellij_dest,
-                'filename': 'config.kdl'
-            })
-
-        # Remove symlink
         remove_symlink(zellij_dest, self.dotfiles_dir, dry_run=False, logger=self.logger)
 
-        # Create target directory (no backup scenario)
-        zellij_dest.mkdir(parents=True, exist_ok=True)
+        ok = uninstall.preserve_file(found, zellij_dest, dry_run=False, logger=self.logger)
 
-        # Copy preserved files
-        for item in files_to_preserve:
-            target = item['dest'] / item['filename']
-            shutil.copy2(item['source'], target)
-
-        # Verify preserved file exists
+        self.assertTrue(ok)
         preserved_file = zellij_dest / "config.kdl"
         self.assertTrue(preserved_file.exists())
         self.assertEqual(preserved_file.read_text(), "# machine-specific")
 
     def test_preserve_with_backup_restoration(self):
-        """Test file preservation when backup is also restored."""
         fish_dest = self.config_dir / "fish"
-        local_config = self.dotfiles_dir / "fish" / "config.local.fish"
 
-        # Create backup
+        # Backup that uninstall will restore after removing the symlink
         fish_backup = self.config_dir / "fish.bak"
         fish_backup.mkdir()
         (fish_backup / "config.fish").write_text("# old config")
 
-        # Collect files to preserve
-        files_to_preserve = []
-        if local_config.exists():
-            files_to_preserve.append({
-                'source': local_config,
-                'dest': fish_dest,
-                'filename': 'config.local.fish'
-            })
+        found = uninstall.find_preserved_file(
+            'fish', 'dir', fish_dest, self.dotfiles_dir
+        )
 
-        # Remove symlink
+        remove_symlink(fish_dest, self.dotfiles_dir, dry_run=False, logger=self.logger)
+        restore_backup(fish_dest, dry_run=False, logger=self.logger)
+        uninstall.preserve_file(found, fish_dest, dry_run=False, logger=self.logger)
+
+        self.assertTrue(fish_dest.exists())
+        self.assertTrue((fish_dest / "config.fish").exists())          # from backup
+        self.assertTrue((fish_dest / "config.local.fish").exists())    # preserved
+
+    def test_find_returns_none_for_unknown_source(self):
+        # Non-dir entries and sources without a registered preserved file → None
+        file_dest = self.home_dir / ".gitconfig"
+        self.assertIsNone(
+            uninstall.find_preserved_file('gitconfig', 'file', file_dest, self.dotfiles_dir)
+        )
+        nvim_dest = self.config_dir / "nvim"
+        self.assertIsNone(
+            uninstall.find_preserved_file('nvim', 'dir', nvim_dest, self.dotfiles_dir)
+        )
+
+    def test_find_returns_none_when_local_file_missing(self):
+        # fish source exists, but no config.local.fish in it
+        (self.dotfiles_dir / "fish" / "config.local.fish").unlink()
+        fish_dest = self.config_dir / "fish"
+
+        self.assertIsNone(
+            uninstall.find_preserved_file('fish', 'dir', fish_dest, self.dotfiles_dir)
+        )
+
+    def test_find_returns_none_when_dest_not_symlink(self):
+        # Replace the fish symlink with a real directory
+        fish_dest = self.config_dir / "fish"
+        fish_dest.unlink()
+        fish_dest.mkdir()
+
+        self.assertIsNone(
+            uninstall.find_preserved_file('fish', 'dir', fish_dest, self.dotfiles_dir)
+        )
+
+    def test_preserve_dry_run_does_not_copy(self):
+        fish_dest = self.config_dir / "fish"
+        found = uninstall.find_preserved_file(
+            'fish', 'dir', fish_dest, self.dotfiles_dir
+        )
+
         remove_symlink(fish_dest, self.dotfiles_dir, dry_run=False, logger=self.logger)
 
-        # Restore backup
-        restore_backup(fish_dest, dry_run=False, logger=self.logger)
+        ok = uninstall.preserve_file(found, fish_dest, dry_run=True, logger=self.logger)
 
-        # Copy preserved files
-        for item in files_to_preserve:
-            target = item['dest'] / item['filename']
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(item['source'], target)
-
-        # Verify both backup and preserved file exist
-        self.assertTrue(fish_dest.exists())
-        self.assertTrue((fish_dest / "config.fish").exists())  # From backup
-        self.assertTrue((fish_dest / "config.local.fish").exists())  # Preserved
+        # Returns True (counted as "would preserve") but nothing written
+        self.assertTrue(ok)
+        self.assertFalse(fish_dest.exists())
 
 
 class TestDryRunMode(unittest.TestCase):

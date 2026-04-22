@@ -341,7 +341,7 @@ To add new configuration files or directories:
 
 ## Requirements
 
-- **Python 3.6+** (for f-strings and pathlib)
+- **Python 3.9+** (matches CI test matrix)
 - Standard library only - no external dependencies
 
 Python 3 comes pre-installed on macOS and most modern Linux distributions.

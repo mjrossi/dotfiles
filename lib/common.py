@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Shared functions and configuration for dotfiles management scripts.
-Requires: Python 3.6+ (for f-strings and pathlib)
+Requires: Python 3.9+ (matches CI test matrix)
 """
 
 from pathlib import Path

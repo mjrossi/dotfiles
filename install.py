@@ -92,6 +92,54 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
         counters['errors'] += 1
 
 
+def fix_ssh_permissions(ssh_dir, dry_run, logger):
+    """Ensure ~/.ssh is 700 and ~/.ssh/config is 600. No-op when already correct."""
+    if not ssh_dir.exists():
+        return
+
+    current_perms = oct(ssh_dir.stat().st_mode)[-3:]
+    if current_perms != '700':
+        logger.debug(f"Fixing ~/.ssh permissions: {current_perms} -> 700")
+        if not dry_run:
+            os.chmod(str(ssh_dir), 0o700)
+        logger.success("Set ~/.ssh directory permissions to 700", indent=True)
+
+    ssh_config = ssh_dir / 'config'
+    if ssh_config.exists() or ssh_config.is_symlink():
+        config_perms = oct(os.stat(str(ssh_config)).st_mode)[-3:]
+        if config_perms != '600':
+            logger.debug(f"Fixing ~/.ssh/config permissions: {config_perms} -> 600")
+            if not dry_run:
+                os.chmod(str(ssh_config), 0o600)
+            logger.success("Set ~/.ssh/config permissions to 600", indent=True)
+
+
+def generate_zellij_config(zellij_config_dir, dry_run, logger):
+    """Regenerate zellij config.kdl from config.shared.kdl + optional config.local.kdl.
+
+    Returns a short 'shared' or 'shared + local' description when it generated,
+    or None if zellij isn't installed (no dir) or the shared file is missing.
+    """
+    zellij_config = zellij_config_dir / 'config.kdl'
+    zellij_shared = zellij_config_dir / 'config.shared.kdl'
+    zellij_local = zellij_config_dir / 'config.local.kdl'
+
+    if not (zellij_config_dir.exists() and zellij_shared.exists()):
+        return None
+
+    logger.debug("Generating zellij config.kdl from shared + local...")
+    if not dry_run:
+        shutil.copy2(str(zellij_shared), str(zellij_config))
+        if zellij_local.exists():
+            with open(str(zellij_config), 'a') as f:
+                f.write('\n// Machine-specific overrides from config.local.kdl\n')
+                with open(str(zellij_local)) as local:
+                    f.write(local.read())
+    detail = "shared + local" if zellij_local.exists() else "shared"
+    logger.success(f"Generated zellij/config.kdl from {detail}", indent=True)
+    return detail
+
+
 def install_brewfile(dotfiles_dir, args, logger):
     """Install Brewfile packages idempotently.
 
@@ -209,42 +257,14 @@ Examples:
         process_item(source_name, dest, 'file', dotfiles_dir, state, args, logger, counters)
 
     # Special handling for SSH: ensure ~/.ssh permissions are correct
-    ssh_dir = Path.home() / '.ssh'
-    if ssh_dir.exists():
-        current_perms = oct(ssh_dir.stat().st_mode)[-3:]
-        if current_perms != '700':
-            logger.debug(f"Fixing ~/.ssh permissions: {current_perms} -> 700")
-            if not args.dry_run:
-                os.chmod(str(ssh_dir), 0o700)
-            logger.success("Set ~/.ssh directory permissions to 700", indent=True)
-
-        ssh_config = ssh_dir / 'config'
-        if ssh_config.exists() or ssh_config.is_symlink():
-            config_perms = oct(os.stat(str(ssh_config)).st_mode)[-3:]
-            if config_perms != '600':
-                logger.debug(f"Fixing ~/.ssh/config permissions: {config_perms} -> 600")
-                if not args.dry_run:
-                    os.chmod(str(ssh_config), 0o600)
-                logger.success("Set ~/.ssh/config permissions to 600", indent=True)
+    fix_ssh_permissions(Path.home() / '.ssh', args.dry_run, logger)
 
     # Special handling for zellij: always regenerate config.kdl from shared + local
-    zellij_config_dir = Path.home() / '.config' / 'zellij'
-    zellij_config = zellij_config_dir / 'config.kdl'
-    zellij_shared = zellij_config_dir / 'config.shared.kdl'
-    zellij_local = zellij_config_dir / 'config.local.kdl'
-
-    if zellij_config_dir.exists() and zellij_shared.exists():
-        logger.debug("Generating zellij config.kdl from shared + local...")
-        if not args.dry_run:
-            shutil.copy2(str(zellij_shared), str(zellij_config))
-            if zellij_local.exists():
-                with open(str(zellij_config), 'a') as f:
-                    f.write('\n// Machine-specific overrides from config.local.kdl\n')
-                    with open(str(zellij_local)) as local:
-                        f.write(local.read())
-        detail = "shared + local" if zellij_local.exists() else "shared"
-        logger.success(f"Generated zellij/config.kdl from {detail}", indent=True)
-        generated.append(f"zellij/config.kdl ({detail})")
+    zellij_detail = generate_zellij_config(
+        Path.home() / '.config' / 'zellij', args.dry_run, logger
+    )
+    if zellij_detail:
+        generated.append(f"zellij/config.kdl ({zellij_detail})")
 
     # Install Brewfile packages (idempotent, opt-out friendly)
     install_brewfile(dotfiles_dir, args, logger)
