@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Repo Is
 
-Personal dotfiles managed via symlinks. Two Python scripts (`install.py`, `uninstall.py`) create/remove symlinks from `~/.config/` and `~/` to this repo. No external Python dependencies — stdlib only, Python 3.6+.
+Personal dotfiles managed via symlinks. Two Python scripts (`install.py`, `uninstall.py`) create/remove symlinks from `~/.config/` and `~/` to this repo. No external Python dependencies — stdlib only, Python 3.9+.
 
 ## Package Management Policy
 
