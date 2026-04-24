@@ -1,42 +1,35 @@
 redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 
 [tools]
-"cargo:bottom" = "latest"
-"cargo:fd-find" = "latest"
-"cargo:hyperfine" = "latest"
-"cargo:nu" = "latest"
-"cargo:skim" = "latest"
-"cargo:toml-cli" = "latest"
-"cargo:zellij" = "latest"
-"go:github.com/fullstorydev/grpcurl/cmd/grpcurl" = "latest"
-go = { version = "1.26.0", postinstall = "mise install_go_tools" }
-gum = "latest"
-jq = "latest"
-just = "latest"
+"aqua:anthropics/claude-code" = "2.1.119"
+"aqua:astral-sh/uv" = "0.11.7"
+"aqua:casey/just" = "1.46.0"
+"aqua:charmbracelet/gum" = "0.17.0"
+"aqua:cli/cli" = "2.91.0"
+"aqua:fullstorydev/grpcurl" = "1.9.3"
+"aqua:jqlang/jq" = "1.8.1"
+"aqua:koalaman/shellcheck" = "0.11.0"
+"aqua:mikefarah/yq" = "4.53.2"
+"aqua:neovim/neovim" = "0.12.2"
+"aqua:sharkdp/fd" = "10.4.2"
+"aqua:zellij-org/zellij" = "0.44.1"
+"pipx:httpie" = "3.2.4"
+go = { version = "1.26.2", postinstall = "mise install_go_tools" }
 node = "25.6.1"
 python = "3.14.3"
-ruby = "4.0.1"
-rust = "stable"
-shellcheck = "latest"
-shfmt = "latest"
-tree-sitter = "latest"
-uv = "latest"
-yq = "latest"
-claude = "latest"
 
 [settings]
 experimental = true
-idiomatic_version_file_enable_tools = ["ruby"]
 pin = true
 python.uv_venv_auto = true
 
 [env]
 MISE_ENV = "development"
-MACOSX_DEPLOYMENT_TARGET = "26.4"  # bump after major macOS upgrades (sw_vers -productVersion)
+MACOSX_DEPLOYMENT_TARGET = "26.4" # bump after major macOS upgrades (sw_vers -productVersion)
 
 [tasks.install_go_tools]
 description = "Install Go Tools Specific to a Version of Go"
 run = [
-	"go install github.com/go-delve/delve/cmd/dlv@latest",
-	"go install golang.org/x/tools/gopls@latest",
+  "go install github.com/go-delve/delve/cmd/dlv@latest",
+  "go install golang.org/x/tools/gopls@latest",
 ]
