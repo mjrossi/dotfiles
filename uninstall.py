@@ -4,6 +4,7 @@ Dotfiles uninstallation script - removes symlinks and restores backups.
 """
 
 import argparse
+import shutil
 import sys
 from pathlib import Path
 
@@ -12,6 +13,57 @@ from lib.common import (
     CONFIG_DIRS, CONFIG_FILES, Logger, StateManager,
     get_dotfiles_dir, restore_backup, remove_symlink, is_managed_symlink, prompt_user
 )
+
+
+# Source-name → filename inside that source dir that must survive uninstall
+PRESERVED_FILES = {
+    'fish': 'config.local.fish',
+    'zellij': 'config.kdl',
+}
+
+
+def find_preserved_file(source_name, item_type, dest, dotfiles_dir):
+    """Locate the machine-specific file to preserve for a given source dir.
+
+    Returns a {'source': Path, 'filename': str} dict, or None if there is
+    nothing to preserve (unknown source, not a dir, or the file doesn't exist).
+    """
+    if item_type != 'dir' or not dest.is_symlink():
+        return None
+
+    filename = PRESERVED_FILES.get(source_name)
+    if filename is None:
+        return None
+
+    local_config = dotfiles_dir / source_name / filename
+    if not (local_config.exists() and local_config.is_file()):
+        return None
+
+    return {'source': local_config, 'filename': filename}
+
+
+def preserve_file(file_to_preserve, dest, dry_run, logger):
+    """Copy a preserved machine-specific file into the restored destination.
+
+    Returns True when the file was preserved (or would be, in dry-run), False
+    when the copy failed. Caller decides what to do with that (counter, etc.).
+    """
+    if dry_run:
+        logger.info(f"Would preserve {file_to_preserve['filename']}", indent=True)
+        return True
+
+    target = dest / file_to_preserve['filename']
+    try:
+        # Ensure parent directory exists (in case no backup was restored)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(file_to_preserve['source'], target)
+        logger.info(f"Preserved {file_to_preserve['filename']}", indent=True)
+        return True
+    except Exception as e:
+        logger.warning(
+            f"Could not preserve {file_to_preserve['filename']}: {e}", indent=True
+        )
+        return False
 
 
 def main():
@@ -93,7 +145,7 @@ Examples:
     for item in to_remove:
         dest = item['dest']
         if dest.exists() or dest.is_symlink():
-            if dest.is_symlink() and is_managed_symlink(dest, dotfiles_dir):
+            if is_managed_symlink(dest, dotfiles_dir):
                 managed.append(item)
                 logger.debug(f"Managed symlink: {dest}")
             else:
@@ -119,7 +171,7 @@ Examples:
 
     # Confirm with user
     if not args.force and not args.dry_run:
-        if not prompt_user("Proceed with uninstallation?", force=args.force):
+        if not prompt_user("Proceed with uninstallation?"):
             logger.info("Uninstallation cancelled")
             sys.exit(0)
         print()
@@ -141,64 +193,33 @@ Examples:
         logger.debug(f"  Destination: {dest}")
 
         # Check for machine-specific files to preserve before removal
-        file_to_preserve = None
-        if item['type'] == 'dir' and dest.is_symlink():
-            source_dir = dotfiles_dir / source_name
-
-            # Check for fish config.local.fish
-            if source_name == 'fish':
-                local_config = source_dir / 'config.local.fish'
-                if local_config.exists() and local_config.is_file():
-                    logger.debug(f"Found machine-specific file: fish/config.local.fish")
-                    file_to_preserve = {
-                        'source': local_config,
-                        'filename': 'config.local.fish'
-                    }
-
-            # Check for zellij config.kdl
-            elif source_name == 'zellij':
-                local_config = source_dir / 'config.kdl'
-                if local_config.exists() and local_config.is_file():
-                    logger.debug(f"Found machine-specific file: zellij/config.kdl")
-                    file_to_preserve = {
-                        'source': local_config,
-                        'filename': 'config.kdl'
-                    }
+        file_to_preserve = find_preserved_file(
+            source_name, item['type'], dest, dotfiles_dir
+        )
+        if file_to_preserve:
+            logger.debug(
+                f"Found machine-specific file: {source_name}/{file_to_preserve['filename']}"
+            )
 
         # Remove symlink
         if remove_symlink(dest, dotfiles_dir, dry_run=args.dry_run, logger=logger):
-            logger.success(f"Removed symlink", indent=True)
+            logger.success("Removed symlink", indent=True)
             removed += 1
 
             # Try to restore backup
-            backup_path_check = Path(f"{dest}.bak")
-            if backup_path_check.exists():
-                if restore_backup(dest, dry_run=args.dry_run, logger=logger):
-                    logger.success(f"Restored backup", indent=True)
-                    restored += 1
-                else:
-                    logger.warning(f"Could not restore backup", indent=True)
+            if restore_backup(dest, dry_run=args.dry_run, logger=logger):
+                logger.success("Restored backup", indent=True)
+                restored += 1
             else:
                 logger.debug(f"No backup found for {source_name}")
 
             # Preserve machine-specific file if found
-            if file_to_preserve:
-                if args.dry_run:
-                    logger.info(f"Would preserve {file_to_preserve['filename']}", indent=True)
-                    preserved += 1
-                else:
-                    target = dest / file_to_preserve['filename']
-                    try:
-                        import shutil
-                        # Ensure parent directory exists (in case no backup was restored)
-                        target.parent.mkdir(parents=True, exist_ok=True)
-                        shutil.copy2(str(file_to_preserve['source']), str(target))
-                        logger.info(f"Preserved {file_to_preserve['filename']}", indent=True)
-                        preserved += 1
-                    except Exception as e:
-                        logger.warning(f"Could not preserve {file_to_preserve['filename']}: {e}", indent=True)
+            if file_to_preserve and preserve_file(
+                file_to_preserve, dest, args.dry_run, logger
+            ):
+                preserved += 1
         else:
-            logger.error(f"Failed to remove symlink", indent=True)
+            logger.error("Failed to remove symlink", indent=True)
             errors += 1
 
     # Clean up state file

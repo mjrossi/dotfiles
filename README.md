@@ -1,5 +1,7 @@
 # Dotfiles
 
+[![tests](https://github.com/mjrossi/dotfiles/actions/workflows/tests.yml/badge.svg)](https://github.com/mjrossi/dotfiles/actions/workflows/tests.yml)
+
 Personal configuration files managed via symlinks. This repository contains configurations for Fish shell, Neovim, Zellij, Ghostty, mise, Git, and SSH, with Python scripts to automatically install and manage them across machines.
 
 ## What's Included
@@ -327,7 +329,7 @@ To add new configuration files or directories:
 
 ## Requirements
 
-- **Python 3.6+** (for f-strings and pathlib)
+- **Python 3.9+** (matches CI test matrix)
 - Standard library only - no external dependencies
 
 Python 3 comes pre-installed on macOS and most modern Linux distributions.

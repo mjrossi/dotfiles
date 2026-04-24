@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 Shared functions and configuration for dotfiles management scripts.
-Requires: Python 3.6+ (for f-strings and pathlib)
+Requires: Python 3.10+ (matches CI test matrix)
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any
 import shutil
 import sys
 import json
@@ -13,7 +13,7 @@ from datetime import datetime
 
 
 # Configuration: Directory mappings
-CONFIG_DIRS: Dict[str, Path] = {
+CONFIG_DIRS: dict[str, Path] = {
     'fish': Path.home() / '.config' / 'fish',
     'nvim': Path.home() / '.config' / 'nvim',
     'zellij': Path.home() / '.config' / 'zellij',
@@ -22,18 +22,11 @@ CONFIG_DIRS: Dict[str, Path] = {
 }
 
 # Configuration: File mappings
-CONFIG_FILES: Dict[str, Path] = {
+CONFIG_FILES: dict[str, Path] = {
     'gitconfig': Path.home() / '.gitconfig',
     'gitignore_global': Path.home() / '.gitignore_global',
     'ssh/config': Path.home() / '.ssh' / 'config',
 }
-
-# Files/patterns to never symlink
-IGNORE_PATTERNS: List[str] = [
-    'Rakefile', 'README.md', '.DS_Store', '.git', '.gitignore',
-    '*.bak', 'install.py', 'uninstall.py', 'lib', '.dotfiles-state',
-    '*.template', 'config.local.fish', 'config.local.kdl', 'tests', 'run_tests.sh',
-]
 
 # State file location
 STATE_FILE = Path(__file__).parent.parent / '.dotfiles-state'
@@ -55,6 +48,13 @@ class Logger:
 
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
+        self.use_color_stdout = sys.stdout.isatty()
+        self.use_color_stderr = sys.stderr.isatty()
+
+    def _c(self, code: str, stream: str = "stdout") -> str:
+        """Return color code only when writing to a TTY."""
+        use_color = self.use_color_stderr if stream == "stderr" else self.use_color_stdout
+        return code if use_color else ""
 
     def header(self, msg: str) -> None:
         """Print section header without prefix"""
@@ -63,27 +63,27 @@ class Logger:
     def info(self, msg: str, indent: bool = False) -> None:
         """Print informational message in blue"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{Colors.BLUE}ℹ{Colors.RESET} {msg}")
+        print(f"{prefix}{self._c(Colors.BLUE)}ℹ{self._c(Colors.RESET)} {msg}")
 
     def success(self, msg: str, indent: bool = False) -> None:
         """Print success message in green"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{Colors.GREEN}✓{Colors.RESET} {msg}")
+        print(f"{prefix}{self._c(Colors.GREEN)}✓{self._c(Colors.RESET)} {msg}")
 
     def warning(self, msg: str, indent: bool = False) -> None:
         """Print warning message in yellow"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{Colors.YELLOW}⚠{Colors.RESET} {msg}")
+        print(f"{prefix}{self._c(Colors.YELLOW)}⚠{self._c(Colors.RESET)} {msg}")
 
     def error(self, msg: str, indent: bool = False) -> None:
         """Print error message in red"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{Colors.RED}✗{Colors.RESET} {msg}", file=sys.stderr)
+        print(f"{prefix}{self._c(Colors.RED, 'stderr')}✗{self._c(Colors.RESET, 'stderr')} {msg}", file=sys.stderr)
 
     def debug(self, msg: str) -> None:
         """Print debug message in gray (only shown in verbose mode)"""
         if self.verbose:
-            print(f"{Colors.GRAY}[DEBUG]{Colors.RESET} {msg}")
+            print(f"{self._c(Colors.GRAY)}[DEBUG]{self._c(Colors.RESET)} {msg}")
 
 
 class StateManager:
@@ -91,12 +91,12 @@ class StateManager:
 
     def __init__(self, state_file: Path = STATE_FILE):
         self.state_file = state_file
-        self.installations: List[Dict[str, any]] = []
+        self.installations: list[dict[str, Any]] = []
 
-    def add(self, type: str, source: str, dest: Path, backup_created: bool) -> None:
+    def add(self, item_type: str, source: str, dest: Path, backup_created: bool) -> None:
         """Add an installation record"""
         self.installations.append({
-            'type': type,
+            'type': item_type,
             'source': source,
             'destination': str(dest),
             'backup_created': backup_created,
@@ -104,15 +104,16 @@ class StateManager:
         })
 
     def save(self) -> None:
-        """Save state to JSON file"""
+        """Save state to JSON file (deduplicates by destination)."""
+        merged = {e['destination']: e for e in self.installations}
         state = {
             'version': '1.0',
-            'installed': self.installations
+            'installed': list(merged.values())
         }
         with open(self.state_file, 'w') as f:
             json.dump(state, f, indent=2)
 
-    def load(self) -> List[Dict[str, any]]:
+    def load(self) -> list[dict[str, Any]]:
         """Load state from JSON file"""
         if not self.state_file.exists():
             return []
@@ -137,7 +138,7 @@ def get_dotfiles_dir() -> Path:
     return Path(__file__).parent.parent.resolve()
 
 
-def backup_path(path: Path, dry_run: bool = False, logger: Optional[Logger] = None) -> Optional[Path]:
+def backup_path(path: Path, dry_run: bool = False, logger: Logger | None = None) -> Path | None:
     """
     Rename path to path.bak (handle conflicts with .bak.1, .bak.2, etc.)
 
@@ -163,12 +164,12 @@ def backup_path(path: Path, dry_run: bool = False, logger: Optional[Logger] = No
         logger.debug(f"Backing up {path} -> {backup}")
 
     if not dry_run:
-        shutil.move(str(path), str(backup))
+        shutil.move(path, backup)
 
     return backup
 
 
-def restore_backup(path: Path, dry_run: bool = False, logger: Optional[Logger] = None) -> bool:
+def restore_backup(path: Path, dry_run: bool = False, logger: Logger | None = None) -> bool:
     """
     Rename path.bak back to path
 
@@ -180,24 +181,28 @@ def restore_backup(path: Path, dry_run: bool = False, logger: Optional[Logger] =
     Returns:
         True if backup was restored, False otherwise
     """
-    backup = Path(f"{path}.bak")
+    # Find the highest-numbered backup first (newest)
+    counter = 1
+    while Path(f"{path}.bak.{counter}").exists():
+        counter += 1
 
-    if not backup.exists():
-        # Try numbered backups
-        backup = Path(f"{path}.bak.1")
-        if not backup.exists():
-            return False
+    if counter > 1:
+        backup = Path(f"{path}.bak.{counter - 1}")
+    elif Path(f"{path}.bak").exists():
+        backup = Path(f"{path}.bak")
+    else:
+        return False
 
     if logger:
         logger.debug(f"Restoring backup {backup} -> {path}")
 
     if not dry_run:
-        shutil.move(str(backup), str(path))
+        shutil.move(backup, path)
 
     return True
 
 
-def create_symlink(source: Path, dest: Path, dry_run: bool = False, logger: Optional[Logger] = None) -> bool:
+def create_symlink(source: Path, dest: Path, dry_run: bool = False, logger: Logger | None = None) -> bool:
     """
     Create symlink with validation
 
@@ -233,7 +238,7 @@ def create_symlink(source: Path, dest: Path, dry_run: bool = False, logger: Opti
     return True
 
 
-def remove_symlink(dest: Path, dotfiles_dir: Path, dry_run: bool = False, logger: Optional[Logger] = None) -> bool:
+def remove_symlink(dest: Path, dotfiles_dir: Path, dry_run: bool = False, logger: Logger | None = None) -> bool:
     """
     Remove symlink only if managed by us
 
