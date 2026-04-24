@@ -22,7 +22,3 @@ macos-option-as-alt = true
 
 # Keybindings
 keybind = shift+enter=text:\n
-# Unbind default Alt+Arrow word-skip so zellij receives Alt+Arrow for pane navigation
-# (word navigation still works via Alt+B / Alt+F)
-keybind = alt+arrow_left=unbind
-keybind = alt+arrow_right=unbind
