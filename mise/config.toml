@@ -1,11 +1,11 @@
 redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 
 [tools]
-"aqua:anthropics/claude-code" = "2.1.119"
-"aqua:astral-sh/uv" = "0.11.7"
-"aqua:casey/just" = "1.46.0"
+"aqua:anthropics/claude-code" = "2.1.126"
+"aqua:astral-sh/uv" = "0.11.8"
+"aqua:casey/just" = "1.50.0"
 "aqua:charmbracelet/gum" = "0.17.0"
-"aqua:cli/cli" = "2.91.0"
+"aqua:cli/cli" = "2.92.0"
 "aqua:fullstorydev/grpcurl" = "1.9.3"
 "aqua:jqlang/jq" = "1.8.1"
 "aqua:koalaman/shellcheck" = "0.11.0"
@@ -15,8 +15,8 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "aqua:zellij-org/zellij" = "0.44.1"
 "pipx:httpie" = "3.2.4"
 go = { version = "1.26.2", postinstall = "mise install_go_tools" }
-node = "25.6.1"
-python = "3.14.3"
+node = "25.9.0"
+python = "3.14.4"
 
 [settings]
 experimental = true
