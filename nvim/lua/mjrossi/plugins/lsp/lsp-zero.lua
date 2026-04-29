@@ -6,31 +6,10 @@ return {
     },
     config = function()
         local cmp_nvim_lsp = require("cmp_nvim_lsp")
+        local on_attach = require("mjrossi.plugins.lsp.on_attach")
 
         -- Default capabilities with completion support
         local capabilities = cmp_nvim_lsp.default_capabilities()
-
-        -- Default on_attach function for keymaps
-        local on_attach = function(client, bufnr)
-            local opts = { buffer = bufnr, silent = true }
-
-            -- Set keybindings
-            vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
-            vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
-            vim.keymap.set("n", "gD", vim.lsp.buf.declaration, opts)
-            vim.keymap.set("n", "gi", vim.lsp.buf.implementation, opts)
-            vim.keymap.set("n", "gt", vim.lsp.buf.type_definition, opts)
-            vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
-            vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, opts)
-            vim.keymap.set({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, opts)
-            vim.keymap.set("n", "<leader>rs", ":LspRestart<CR>", opts)
-
-            -- Diagnostic keybindings
-            vim.keymap.set("n", "gl", vim.diagnostic.open_float, opts)
-            vim.keymap.set("n", "[d", function() vim.diagnostic.jump({ count = -1 }) end, opts)
-            vim.keymap.set("n", "]d", function() vim.diagnostic.jump({ count = 1 }) end, opts)
-            vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, opts)
-        end
 
         -- Apply shared capabilities and on_attach to all servers
         -- Individual server configs below will merge/override as needed
