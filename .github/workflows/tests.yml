@@ -21,3 +21,21 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -m unittest discover tests -v
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install + reinstall + uninstall against scratch HOME
+        run: |
+          set -euxo pipefail
+          SCRATCH_HOME="$(mktemp -d)"
+          mkdir -p "$SCRATCH_HOME/.config"
+          export HOME="$SCRATCH_HOME"
+          export DOTFILES_STATE_FILE="$SCRATCH_HOME/.dotfiles-state"
+          ./install.py --force --skip-brew
+          ./install.py --force --skip-brew
+          ./uninstall.py --force

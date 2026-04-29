@@ -33,9 +33,10 @@ python3 -m unittest tests.test_install.TestFreshInstall -v
 - ✓ Backup created for existing directory
 - ✓ Backup numbering when .bak already exists
 
-**TestZellijSpecialHandling** - Zellij config.kdl creation
-- ✓ config.kdl created from config.shared.kdl
-- ✓ Existing config.kdl not overwritten
+**TestZellijSpecialHandling** - Zellij config.kdl regeneration
+- ✓ config.kdl generated from config.shared.kdl
+- ✓ config.kdl always regenerated on each install run
+- ✓ config.local.kdl appended when present
 
 **TestIdempotency** - Multiple install runs
 - ✓ Already installed symlinks detected and skipped
