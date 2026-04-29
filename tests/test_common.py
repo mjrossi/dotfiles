@@ -107,6 +107,33 @@ class TestStateManagerMalformedJson(unittest.TestCase):
         self.assertEqual(records, [])
 
 
+class TestStateManagerEnvOverride(unittest.TestCase):
+    """StateManager respects DOTFILES_STATE_FILE env var for isolation."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_env_var_overrides_default_path(self):
+        override = Path(self.test_dir) / "scratch-state"
+        with mock.patch.dict('os.environ', {'DOTFILES_STATE_FILE': str(override)}):
+            state = StateManager()
+            self.assertEqual(state.state_file, override)
+            state.add('dir', 'fish', Path('/anywhere'), backup_created=False)
+            state.save()
+
+        self.assertTrue(override.exists())
+
+    def test_explicit_arg_wins_over_env_var(self):
+        env_path = Path(self.test_dir) / "env-state"
+        explicit = Path(self.test_dir) / "explicit-state"
+        with mock.patch.dict('os.environ', {'DOTFILES_STATE_FILE': str(env_path)}):
+            state = StateManager(state_file=explicit)
+            self.assertEqual(state.state_file, explicit)
+
+
 class TestStateManagerDedup(unittest.TestCase):
     """StateManager.save deduplicates records by destination, newest wins."""
 
@@ -183,6 +210,17 @@ class TestCreateSymlinkFailures(unittest.TestCase):
         self.assertTrue(result)
         self.assertFalse(dest.exists())
         self.assertFalse(dest.is_symlink())
+
+    def test_dry_run_does_not_create_parent_directories(self):
+        source = self.root / "source"
+        source.mkdir()
+        dest = self.root / "nested" / "deeper" / "dest"
+
+        result = create_symlink(source, dest, dry_run=True, logger=self.logger)
+
+        self.assertTrue(result)
+        self.assertFalse(dest.parent.exists())
+        self.assertFalse((self.root / "nested").exists())
 
 
 class TestRemoveSymlinkSafety(unittest.TestCase):
@@ -274,6 +312,17 @@ class TestIsManagedSymlinkEdgeCases(unittest.TestCase):
         regular.mkdir()
 
         self.assertFalse(is_managed_symlink(regular, self.dotfiles_dir))
+
+    def test_sibling_prefix_directory_is_not_managed(self):
+        # A naive str.startswith check treats /.../dotfiles-old/fish as being
+        # "under" /.../dotfiles. is_relative_to rejects that correctly.
+        sibling = self.root / "dotfiles-old"
+        sibling.mkdir()
+        (sibling / "fish").mkdir()
+        link = self.root / "fish-link"
+        link.symlink_to(sibling / "fish")
+
+        self.assertFalse(is_managed_symlink(link, self.dotfiles_dir))
 
 
 if __name__ == '__main__':

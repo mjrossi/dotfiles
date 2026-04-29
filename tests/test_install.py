@@ -605,6 +605,22 @@ class TestProcessItem(unittest.TestCase):
         self.assertTrue(dest.is_dir())
         self.assertFalse(dest.is_symlink())
 
+    def test_stale_managed_symlink_is_relinked(self):
+        # Managed symlink pointing at a different source inside the repo
+        # (simulates renaming a source dir) should be unlinked and recreated
+        # without bumping the error counter.
+        (self.dotfiles_dir / "fish-old").mkdir()
+        dest = self.config_dir / "fish"
+        dest.symlink_to(self.dotfiles_dir / "fish-old")
+
+        counters = self._run("fish", dest, "dir")
+
+        self.assertEqual(counters['installed'], 1)
+        self.assertEqual(counters['errors'], 0)
+        self.assertEqual(counters['backed_up'], 0)
+        self.assertTrue(dest.is_symlink())
+        self.assertEqual(dest.readlink(), self.dotfiles_dir / "fish")
+
     def test_broken_symlink_is_replaced(self):
         dest = self.config_dir / "fish"
         dest.symlink_to(self.dotfiles_dir / "does-not-exist")

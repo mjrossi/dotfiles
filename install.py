@@ -56,7 +56,12 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
                 counters['skipped'] += 1
                 return
             else:
-                logger.warning(f"Symlink exists but points to different location: {dest} -> {target}", indent=True)
+                # Managed symlink pointing at a different source (e.g. a
+                # renamed directory in this repo). Safe to remove without a
+                # backup: it points inside our own dotfiles dir.
+                logger.warning(f"Symlink points to different location: {dest} -> {target}; relinking", indent=True)
+                if not args.dry_run:
+                    dest.unlink()
 
         if dest.exists() and not dest.is_symlink():
             if kind == 'dir' and dest.is_file():
@@ -105,7 +110,9 @@ def fix_ssh_permissions(ssh_dir, dry_run, logger):
         logger.success("Set ~/.ssh directory permissions to 700", indent=True)
 
     ssh_config = ssh_dir / 'config'
-    if ssh_config.exists() or ssh_config.is_symlink():
+    # is_file() follows symlinks and is True only when the link resolves,
+    # so a broken ~/.ssh/config symlink won't raise FileNotFoundError here.
+    if ssh_config.is_file():
         config_perms = oct(os.stat(ssh_config).st_mode)[-3:]
         if config_perms != '600':
             logger.debug(f"Fixing ~/.ssh/config permissions: {config_perms} -> 600")
@@ -131,7 +138,9 @@ def generate_zellij_config(zellij_config_dir, dry_run, logger):
     if not dry_run:
         content = zellij_shared.read_text()
         if zellij_local.exists():
-            content += '\n// Machine-specific overrides from config.local.kdl\n'
+            if not content.endswith('\n'):
+                content += '\n'
+            content += '// Machine-specific overrides from config.local.kdl\n'
             content += zellij_local.read_text()
         zellij_config.write_text(content)
     detail = "shared + local" if zellij_local.exists() else "shared"
