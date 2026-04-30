@@ -266,8 +266,8 @@ dotfiles/
 ├── fish/                          # Fish shell configuration
 │   ├── config.fish               # Main Fish config (sources config.local.fish)
 │   ├── config.local.fish.template # Template for machine-specific config
-│   ├── functions/                # Custom functions
-│   └── completions/              # Custom completions
+│   ├── conf.d/                   # Auto-sourced snippets (brew shellenv, etc.)
+│   └── functions/                # Custom functions (fish_prompt, unset)
 ├── nvim/                          # Neovim configuration
 │   ├── init.lua                  # Main entry point
 │   └── lua/mjrossi/              # Modular config
@@ -341,7 +341,7 @@ To add new configuration files or directories:
 
 ## Requirements
 
-- **Python 3.9+** (matches CI test matrix)
+- **Python 3.10+** (matches CI test matrix)
 - Standard library only - no external dependencies
 
 Python 3 comes pre-installed on macOS and most modern Linux distributions.
