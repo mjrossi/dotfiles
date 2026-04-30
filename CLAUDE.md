@@ -29,8 +29,6 @@ When adding a tool: try `mise` first. Within mise, prefer prebuilt-binary backen
 ./uninstall.py
 
 # Run all tests
-./run_tests.sh
-# or
 python3 -m unittest discover tests -v
 
 # Run a single test class

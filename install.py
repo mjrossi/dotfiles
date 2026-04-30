@@ -3,7 +3,6 @@
 Dotfiles installation script - creates symlinks for configuration files and directories.
 """
 
-import argparse
 import os
 import shutil
 import subprocess
@@ -13,7 +12,8 @@ from pathlib import Path
 # Import from lib.common
 from lib.common import (
     CONFIG_DIRS, CONFIG_FILES, Logger, StateManager,
-    get_dotfiles_dir, backup_path, create_symlink, is_managed_symlink
+    build_arg_parser, get_dotfiles_dir, backup_path, create_symlink,
+    is_managed_symlink, run_main,
 )
 
 
@@ -26,19 +26,15 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
     logger.debug(f"  Source: {source}")
     logger.debug(f"  Destination: {dest}")
 
-    # Validate source exists and is the right type
-    if not source.exists():
-        logger.error(f"Source {kind} does not exist: {source}", indent=True)
-        counters['errors'] += 1
-        return
-
-    if kind == 'dir' and not source.is_dir():
-        logger.error(f"Source is not a directory: {source}", indent=True)
-        counters['errors'] += 1
-        return
-
-    if kind == 'file' and not source.is_file():
-        logger.error(f"Source is not a file: {source}", indent=True)
+    # Validate source exists and is the right type. Triggers only when the
+    # repo itself is broken (sources are checked into git), so a single
+    # combined message is fine.
+    if (
+        not source.exists()
+        or (kind == 'dir' and not source.is_dir())
+        or (kind == 'file' and not source.is_file())
+    ):
+        logger.error(f"Source {kind} missing or wrong type: {source}", indent=True)
         counters['errors'] += 1
         return
 
@@ -199,10 +195,8 @@ def install_brewfile(dotfiles_dir, args, logger):
 
 def main():
     """Main installation logic"""
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser(
+    parser = build_arg_parser(
         description='Install dotfiles via symlinks',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   ./install.py                    # Install dotfiles
@@ -210,17 +204,9 @@ Examples:
   ./install.py --verbose          # Show detailed output
   ./install.py --force            # Override without prompts
   ./install.py --dry-run --verbose # Combine flags
-        """
+        """,
+        include_skip_brew=True,
     )
-    parser.add_argument('--dry-run', action='store_true',
-                        help='Preview changes without executing')
-    parser.add_argument('--verbose', action='store_true',
-                        help='Show detailed output')
-    parser.add_argument('--force', action='store_true',
-                        help='Override without prompts')
-    parser.add_argument('--skip-brew', action='store_true',
-                        help='Skip Brewfile install step (also: DOTFILES_SKIP_BREW=1)')
-
     args = parser.parse_args()
 
     # Initialize logger and state manager
@@ -320,14 +306,4 @@ Examples:
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print()
-        print("Installation interrupted by user")
-        sys.exit(130)
-    except Exception as e:
-        print(f"Unexpected error: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    run_main(main, 'Installation')

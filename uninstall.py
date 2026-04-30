@@ -3,7 +3,6 @@
 Dotfiles uninstallation script - removes symlinks and restores backups.
 """
 
-import argparse
 import shutil
 import sys
 from pathlib import Path
@@ -11,7 +10,8 @@ from pathlib import Path
 # Import from lib.common
 from lib.common import (
     CONFIG_DIRS, CONFIG_FILES, Logger, StateManager,
-    get_dotfiles_dir, restore_backup, remove_symlink, is_managed_symlink, prompt_user
+    build_arg_parser, get_dotfiles_dir, restore_backup, remove_symlink,
+    is_managed_symlink, prompt_user, run_main,
 )
 
 
@@ -68,25 +68,16 @@ def preserve_file(file_to_preserve, dest, dry_run, logger):
 
 def main():
     """Main uninstallation logic"""
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser(
+    parser = build_arg_parser(
         description='Uninstall dotfiles symlinks and restore backups',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   ./uninstall.py                    # Uninstall dotfiles
   ./uninstall.py --dry-run          # Preview changes without executing
   ./uninstall.py --verbose          # Show detailed output
   ./uninstall.py --force            # Override without prompts
-        """
+        """,
     )
-    parser.add_argument('--dry-run', action='store_true',
-                        help='Preview changes without executing')
-    parser.add_argument('--verbose', action='store_true',
-                        help='Show detailed output')
-    parser.add_argument('--force', action='store_true',
-                        help='Override without prompts')
-
     args = parser.parse_args()
 
     # Initialize logger and state manager
@@ -273,14 +264,4 @@ Examples:
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print()
-        print("Uninstallation interrupted by user")
-        sys.exit(130)
-    except Exception as e:
-        print(f"Unexpected error: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    run_main(main, 'Uninstallation')

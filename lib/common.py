@@ -4,8 +4,9 @@ Shared functions and configuration for dotfiles management scripts.
 Requires: Python 3.10+ (matches CI test matrix)
 """
 
+import argparse
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 import os
 import shutil
 import sys
@@ -35,29 +36,15 @@ CONFIG_FILES: dict[str, Path] = {
 STATE_FILE = Path(__file__).parent.parent / '.dotfiles-state'
 
 
-def _resolve_state_file(explicit: Path | None) -> Path:
-    """Pick the state file path: explicit arg > env override > repo default."""
-    if explicit is not None:
-        return explicit
-    env_override = os.environ.get('DOTFILES_STATE_FILE')
-    if env_override:
-        return Path(env_override)
-    return STATE_FILE
-
-
-class Colors:
-    """ANSI color codes for terminal output"""
-    BLUE = '\033[94m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    GRAY = '\033[90m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
-
-
 class Logger:
     """Handles colored logging output"""
+
+    _BLUE = '\033[94m'
+    _GREEN = '\033[92m'
+    _YELLOW = '\033[93m'
+    _RED = '\033[91m'
+    _GRAY = '\033[90m'
+    _RESET = '\033[0m'
 
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
@@ -76,57 +63,66 @@ class Logger:
     def info(self, msg: str, indent: bool = False) -> None:
         """Print informational message in blue"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{self._c(Colors.BLUE)}ℹ{self._c(Colors.RESET)} {msg}")
+        print(f"{prefix}{self._c(self._BLUE)}ℹ{self._c(self._RESET)} {msg}")
 
     def success(self, msg: str, indent: bool = False) -> None:
         """Print success message in green"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{self._c(Colors.GREEN)}✓{self._c(Colors.RESET)} {msg}")
+        print(f"{prefix}{self._c(self._GREEN)}✓{self._c(self._RESET)} {msg}")
 
     def warning(self, msg: str, indent: bool = False) -> None:
         """Print warning message in yellow"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{self._c(Colors.YELLOW)}⚠{self._c(Colors.RESET)} {msg}")
+        print(f"{prefix}{self._c(self._YELLOW)}⚠{self._c(self._RESET)} {msg}")
 
     def error(self, msg: str, indent: bool = False) -> None:
         """Print error message in red"""
         prefix = "  " if indent else ""
-        print(f"{prefix}{self._c(Colors.RED, 'stderr')}✗{self._c(Colors.RESET, 'stderr')} {msg}", file=sys.stderr)
+        print(f"{prefix}{self._c(self._RED, 'stderr')}✗{self._c(self._RESET, 'stderr')} {msg}", file=sys.stderr)
 
     def debug(self, msg: str) -> None:
         """Print debug message in gray (only shown in verbose mode)"""
         if self.verbose:
-            print(f"{self._c(Colors.GRAY)}[DEBUG]{self._c(Colors.RESET)} {msg}")
+            print(f"{self._c(self._GRAY)}[DEBUG]{self._c(self._RESET)} {msg}")
 
 
 class StateManager:
     """Manages the .dotfiles-state file for tracking installations"""
 
     def __init__(self, state_file: Path | None = None):
-        self.state_file = _resolve_state_file(state_file)
+        # Precedence: explicit arg > DOTFILES_STATE_FILE env override > repo default.
+        # The env override lets the CI smoke test (and local sandboxes) keep a
+        # scratch HOME from stomping on the user's real state file.
+        if state_file is not None:
+            self.state_file = state_file
+        elif env_override := os.environ.get('DOTFILES_STATE_FILE'):
+            self.state_file = Path(env_override)
+        else:
+            self.state_file = STATE_FILE
         self.installations: list[dict[str, Any]] = []
 
     def add(self, item_type: str, source: str, dest: Path, backup_created: bool) -> None:
-        """Add an installation record"""
-        self.installations.append({
+        """Add (or replace) an installation record, keyed by destination."""
+        record = {
             'type': item_type,
             'source': source,
             'destination': str(dest),
             'backup_created': backup_created,
-            'timestamp': datetime.now().isoformat()
-        })
+            'timestamp': datetime.now().isoformat(),
+        }
+        for i, existing in enumerate(self.installations):
+            if existing['destination'] == record['destination']:
+                self.installations[i] = record
+                return
+        self.installations.append(record)
 
     def save(self) -> None:
-        """Save state to JSON file (deduplicates by destination).
+        """Save state to JSON file.
 
         Writes atomically: dump to a sibling temp file, then os.replace onto
         the real path so a crash mid-write cannot leave a truncated JSON file.
         """
-        merged = {e['destination']: e for e in self.installations}
-        state = {
-            'version': '1.0',
-            'installed': list(merged.values())
-        }
+        state = {'version': '1.0', 'installed': self.installations}
         tmp = self.state_file.with_suffix(self.state_file.suffix + '.tmp')
         with open(tmp, 'w') as f:
             json.dump(state, f, indent=2)
@@ -344,3 +340,35 @@ def prompt_user(question: str, force: bool = False) -> bool:
             return False
         else:
             print("Please answer 'y' or 'n'")
+
+
+def build_arg_parser(
+    description: str, epilog: str, include_skip_brew: bool = False
+) -> argparse.ArgumentParser:
+    """Shared argparse skeleton for install.py and uninstall.py."""
+    parser = argparse.ArgumentParser(
+        description=description,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=epilog,
+    )
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Preview changes without executing')
+    parser.add_argument('--verbose', action='store_true',
+                        help='Show detailed output')
+    parser.add_argument('--force', action='store_true',
+                        help='Override without prompts')
+    if include_skip_brew:
+        parser.add_argument('--skip-brew', action='store_true',
+                            help='Skip Brewfile install step (also: DOTFILES_SKIP_BREW=1)')
+    return parser
+
+
+def run_main(main_fn: Callable[[], None], action_name: str) -> None:
+    """Invoke main_fn, handling Ctrl-C cleanly. Other exceptions propagate
+    so Python's default traceback does the reporting."""
+    try:
+        main_fn()
+    except KeyboardInterrupt:
+        print()
+        print(f"{action_name} interrupted by user")
+        sys.exit(130)
