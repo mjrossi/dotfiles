@@ -453,7 +453,7 @@ All scripts use:
 Run the test suite to verify installation and uninstallation logic:
 
 ```bash
-./run_tests.sh
+python3 -m unittest discover tests -v
 ```
 
 Or run specific tests:

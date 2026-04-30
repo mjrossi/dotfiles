@@ -15,8 +15,11 @@ from unittest import mock
 import sys
 import os
 
-# Add parent directory to path to import modules
+# Add repo root to path so `lib`, `install`, and `tests._helpers` all import
+# whether we're running via `python3 -m unittest discover` or `python3 tests/test_install.py`.
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from tests._helpers import DotfilesTestCase
 
 from lib.common import (
     backup_path, restore_backup, create_symlink, is_managed_symlink,
@@ -36,30 +39,13 @@ def _fresh_counters():
     return {'installed': 0, 'skipped': 0, 'backed_up': 0, 'errors': 0}
 
 
-class TestFreshInstall(unittest.TestCase):
+class TestFreshInstall(DotfilesTestCase):
     """Test installation on a fresh machine with no existing configs."""
 
     def setUp(self):
-        """Create temporary directories for testing."""
-        self.test_dir = tempfile.mkdtemp()
-        self.dotfiles_dir = Path(self.test_dir) / "dotfiles"
-        self.home_dir = Path(self.test_dir) / "home"
-        self.config_dir = self.home_dir / ".config"
-
-        # Create directory structure
-        self.dotfiles_dir.mkdir()
-        self.home_dir.mkdir()
-        self.config_dir.mkdir()
-
-        # Create fake dotfiles
+        super().setUp()
         (self.dotfiles_dir / "fish").mkdir()
         (self.dotfiles_dir / "fish" / "config.fish").write_text("# fish config")
-
-        self.logger = Logger(verbose=False)
-
-    def tearDown(self):
-        """Clean up temporary directories."""
-        shutil.rmtree(self.test_dir)
 
     def test_symlink_creation_no_existing_config(self):
         """Test creating symlink when no config exists."""
@@ -93,35 +79,17 @@ class TestFreshInstall(unittest.TestCase):
         self.assertTrue(is_managed_symlink(dest, self.dotfiles_dir))
 
 
-class TestInstallWithExistingConfigs(unittest.TestCase):
+class TestInstallWithExistingConfigs(DotfilesTestCase):
     """Test installation when existing configs already exist."""
 
     def setUp(self):
-        """Create temporary directories with existing configs."""
-        self.test_dir = tempfile.mkdtemp()
-        self.dotfiles_dir = Path(self.test_dir) / "dotfiles"
-        self.home_dir = Path(self.test_dir) / "home"
-        self.config_dir = self.home_dir / ".config"
-
-        # Create directory structure
-        self.dotfiles_dir.mkdir()
-        self.home_dir.mkdir()
-        self.config_dir.mkdir()
-
-        # Create fake dotfiles
+        super().setUp()
         (self.dotfiles_dir / "fish").mkdir()
         (self.dotfiles_dir / "fish" / "config.fish").write_text("# new fish config")
 
-        # Create existing config
         existing_fish = self.config_dir / "fish"
         existing_fish.mkdir()
         (existing_fish / "config.fish").write_text("# old fish config")
-
-        self.logger = Logger(verbose=False)
-
-    def tearDown(self):
-        """Clean up temporary directories."""
-        shutil.rmtree(self.test_dir)
 
     def test_backup_created_for_existing_directory(self):
         """Test that existing directory is backed up before symlinking."""
@@ -206,19 +174,11 @@ class TestRestoreBackupNumbered(unittest.TestCase):
         self.assertFalse(bak.exists())
 
 
-class TestZellijSpecialHandling(unittest.TestCase):
+class TestZellijSpecialHandling(DotfilesTestCase):
     """Exercise install.generate_zellij_config against a sandboxed filesystem."""
 
     def setUp(self):
-        self.test_dir = tempfile.mkdtemp()
-        self.dotfiles_dir = Path(self.test_dir) / "dotfiles"
-        self.home_dir = Path(self.test_dir) / "home"
-        self.config_dir = self.home_dir / ".config"
-
-        self.dotfiles_dir.mkdir()
-        self.home_dir.mkdir()
-        self.config_dir.mkdir()
-
+        super().setUp()
         # Real on-disk zellij dir in the dotfiles repo, plus a symlink from
         # ~/.config/zellij to it — same shape as after `./install.py` runs.
         zellij_dir = self.dotfiles_dir / "zellij"
@@ -228,14 +188,13 @@ class TestZellijSpecialHandling(unittest.TestCase):
         self.zellij_dest = self.config_dir / "zellij"
         self.zellij_dest.symlink_to(zellij_dir)
 
-        self.logger = Logger(verbose=False)
         # Silence logger output
         self._stdout_ctx = redirect_stdout(io.StringIO())
         self._stdout_ctx.__enter__()
 
     def tearDown(self):
         self._stdout_ctx.__exit__(None, None, None)
-        shutil.rmtree(self.test_dir)
+        super().tearDown()
 
     def test_config_kdl_created_from_shared(self):
         detail = install.generate_zellij_config(
@@ -302,33 +261,15 @@ class TestZellijSpecialHandling(unittest.TestCase):
         self.assertFalse((self.zellij_dest / "config.kdl").exists())
 
 
-class TestIdempotency(unittest.TestCase):
+class TestIdempotency(DotfilesTestCase):
     """Test that install script can be run multiple times safely."""
 
     def setUp(self):
-        """Create temporary directories with symlinks already installed."""
-        self.test_dir = tempfile.mkdtemp()
-        self.dotfiles_dir = Path(self.test_dir) / "dotfiles"
-        self.home_dir = Path(self.test_dir) / "home"
-        self.config_dir = self.home_dir / ".config"
-
-        # Create directory structure
-        self.dotfiles_dir.mkdir()
-        self.home_dir.mkdir()
-        self.config_dir.mkdir()
-
-        # Create fake dotfiles
+        super().setUp()
         (self.dotfiles_dir / "fish").mkdir()
         (self.dotfiles_dir / "fish" / "config.fish").write_text("# fish config")
-
-        # Create symlink (already installed)
+        # Symlink already installed (simulates a re-run)
         (self.config_dir / "fish").symlink_to(self.dotfiles_dir / "fish")
-
-        self.logger = Logger(verbose=False)
-
-    def tearDown(self):
-        """Clean up temporary directories."""
-        shutil.rmtree(self.test_dir)
 
     def test_already_installed_symlink_detected(self):
         """Test that already installed symlinks are detected and skipped."""
@@ -474,38 +415,28 @@ class TestFixSSHPermissions(unittest.TestCase):
         )
 
 
-class TestProcessItem(unittest.TestCase):
+class TestProcessItem(DotfilesTestCase):
     """Exercise the real install.process_item on a sandboxed filesystem."""
 
     def setUp(self):
-        self.test_dir = tempfile.mkdtemp()
-        self.dotfiles_dir = Path(self.test_dir) / "dotfiles"
-        self.home_dir = Path(self.test_dir) / "home"
-        self.config_dir = self.home_dir / ".config"
-        self.dotfiles_dir.mkdir()
-        self.home_dir.mkdir()
-        self.config_dir.mkdir()
-
+        super().setUp()
         # Source fixtures
         (self.dotfiles_dir / "fish").mkdir()
         (self.dotfiles_dir / "fish" / "config.fish").write_text("# fish")
         (self.dotfiles_dir / "gitconfig").write_text("[user]\n\tname = test\n")
 
-        self.logger = Logger(verbose=False)
         self.state_file = Path(self.test_dir) / ".dotfiles-state"
         self.state = StateManager(state_file=self.state_file)
         # Silence the logger's info/success/header output during tests
-        self._stdout_buf = io.StringIO()
-        self._stderr_buf = io.StringIO()
-        self._stdout_ctx = redirect_stdout(self._stdout_buf)
-        self._stderr_ctx = redirect_stderr(self._stderr_buf)
+        self._stdout_ctx = redirect_stdout(io.StringIO())
+        self._stderr_ctx = redirect_stderr(io.StringIO())
         self._stdout_ctx.__enter__()
         self._stderr_ctx.__enter__()
 
     def tearDown(self):
         self._stderr_ctx.__exit__(None, None, None)
         self._stdout_ctx.__exit__(None, None, None)
-        shutil.rmtree(self.test_dir)
+        super().tearDown()
 
     def _run(self, source_name, dest, kind, args=None):
         counters = _fresh_counters()

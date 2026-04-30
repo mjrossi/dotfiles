@@ -11,8 +11,11 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 import sys
 
-# Add parent directory to path to import modules
+# Add repo root to path so `lib`, `uninstall`, and `tests._helpers` all import
+# whether we're running via `python3 -m unittest discover` or `python3 tests/test_uninstall.py`.
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from tests._helpers import DotfilesTestCase
 
 from lib.common import (
     restore_backup, remove_symlink, is_managed_symlink,
@@ -21,39 +24,20 @@ from lib.common import (
 import uninstall
 
 
-class TestUninstallWithBackups(unittest.TestCase):
+class TestUninstallWithBackups(DotfilesTestCase):
     """Test uninstallation when backups exist."""
 
     def setUp(self):
-        """Create temporary directories with symlinks and backups."""
-        self.test_dir = tempfile.mkdtemp()
-        self.dotfiles_dir = Path(self.test_dir) / "dotfiles"
-        self.home_dir = Path(self.test_dir) / "home"
-        self.config_dir = self.home_dir / ".config"
-
-        # Create directory structure
-        self.dotfiles_dir.mkdir()
-        self.home_dir.mkdir()
-        self.config_dir.mkdir()
-
-        # Create fake dotfiles
+        super().setUp()
         fish_dir = self.dotfiles_dir / "fish"
         fish_dir.mkdir()
         (fish_dir / "config.fish").write_text("# new fish config")
 
-        # Create backup
         fish_backup = self.config_dir / "fish.bak"
         fish_backup.mkdir()
         (fish_backup / "config.fish").write_text("# old fish config")
 
-        # Create symlink
         (self.config_dir / "fish").symlink_to(fish_dir)
-
-        self.logger = Logger(verbose=False)
-
-    def tearDown(self):
-        """Clean up temporary directories."""
-        shutil.rmtree(self.test_dir)
 
     def test_symlink_removal(self):
         """Test that managed symlinks are removed."""
@@ -86,34 +70,15 @@ class TestUninstallWithBackups(unittest.TestCase):
         )
 
 
-class TestUninstallFreshMachine(unittest.TestCase):
+class TestUninstallFreshMachine(DotfilesTestCase):
     """Test uninstallation on fresh machine (no backups)."""
 
     def setUp(self):
-        """Create temporary directories with symlinks but no backups."""
-        self.test_dir = tempfile.mkdtemp()
-        self.dotfiles_dir = Path(self.test_dir) / "dotfiles"
-        self.home_dir = Path(self.test_dir) / "home"
-        self.config_dir = self.home_dir / ".config"
-
-        # Create directory structure
-        self.dotfiles_dir.mkdir()
-        self.home_dir.mkdir()
-        self.config_dir.mkdir()
-
-        # Create fake dotfiles
+        super().setUp()
         fish_dir = self.dotfiles_dir / "fish"
         fish_dir.mkdir()
         (fish_dir / "config.fish").write_text("# fish config")
-
-        # Create symlink (no backup)
         (self.config_dir / "fish").symlink_to(fish_dir)
-
-        self.logger = Logger(verbose=False)
-
-    def tearDown(self):
-        """Clean up temporary directories."""
-        shutil.rmtree(self.test_dir)
 
     def test_uninstall_without_backup(self):
         """Test that uninstall works when no backup exists."""
@@ -132,19 +97,11 @@ class TestUninstallFreshMachine(unittest.TestCase):
         self.assertFalse(dest.exists())
 
 
-class TestMachineSpecificFilePreservation(unittest.TestCase):
+class TestMachineSpecificFilePreservation(DotfilesTestCase):
     """Exercise uninstall.find_preserved_file + preserve_file on real state."""
 
     def setUp(self):
-        self.test_dir = tempfile.mkdtemp()
-        self.dotfiles_dir = Path(self.test_dir) / "dotfiles"
-        self.home_dir = Path(self.test_dir) / "home"
-        self.config_dir = self.home_dir / ".config"
-
-        self.dotfiles_dir.mkdir()
-        self.home_dir.mkdir()
-        self.config_dir.mkdir()
-
+        super().setUp()
         # Dotfiles sources with machine-specific files alongside the shared ones
         fish_dir = self.dotfiles_dir / "fish"
         fish_dir.mkdir()
@@ -160,14 +117,13 @@ class TestMachineSpecificFilePreservation(unittest.TestCase):
         (self.config_dir / "fish").symlink_to(fish_dir)
         (self.config_dir / "zellij").symlink_to(zellij_dir)
 
-        self.logger = Logger(verbose=False)
         # Silence uninstall helpers' info-level output
         self._stdout_ctx = redirect_stdout(io.StringIO())
         self._stdout_ctx.__enter__()
 
     def tearDown(self):
         self._stdout_ctx.__exit__(None, None, None)
-        shutil.rmtree(self.test_dir)
+        super().tearDown()
 
     def test_preserve_fish_local_config(self):
         fish_dest = self.config_dir / "fish"
@@ -271,31 +227,14 @@ class TestMachineSpecificFilePreservation(unittest.TestCase):
         self.assertFalse(fish_dest.exists())
 
 
-class TestDryRunMode(unittest.TestCase):
+class TestDryRunMode(DotfilesTestCase):
     """Test that dry-run mode doesn't modify filesystem."""
 
     def setUp(self):
-        """Create temporary directories for testing."""
-        self.test_dir = tempfile.mkdtemp()
-        self.dotfiles_dir = Path(self.test_dir) / "dotfiles"
-        self.home_dir = Path(self.test_dir) / "home"
-        self.config_dir = self.home_dir / ".config"
-
-        # Create directory structure
-        self.dotfiles_dir.mkdir()
-        self.home_dir.mkdir()
-        self.config_dir.mkdir()
-
-        # Create existing config
+        super().setUp()
         existing_fish = self.config_dir / "fish"
         existing_fish.mkdir()
         (existing_fish / "config.fish").write_text("# existing")
-
-        self.logger = Logger(verbose=False)
-
-    def tearDown(self):
-        """Clean up temporary directories."""
-        shutil.rmtree(self.test_dir)
 
     def test_backup_dry_run_no_changes(self):
         """Test that dry-run mode doesn't actually move files."""
