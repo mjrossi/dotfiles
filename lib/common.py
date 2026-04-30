@@ -6,6 +6,7 @@ Requires: Python 3.10+ (matches CI test matrix)
 
 from pathlib import Path
 from typing import Any
+import os
 import shutil
 import sys
 import json
@@ -28,8 +29,20 @@ CONFIG_FILES: dict[str, Path] = {
     'ssh/config': Path.home() / '.ssh' / 'config',
 }
 
-# State file location
+# State file location. Override via DOTFILES_STATE_FILE for isolated test
+# runs (CI smoke test, local sandbox) so a scratch HOME doesn't share state
+# with the user's real installation.
 STATE_FILE = Path(__file__).parent.parent / '.dotfiles-state'
+
+
+def _resolve_state_file(explicit: Path | None) -> Path:
+    """Pick the state file path: explicit arg > env override > repo default."""
+    if explicit is not None:
+        return explicit
+    env_override = os.environ.get('DOTFILES_STATE_FILE')
+    if env_override:
+        return Path(env_override)
+    return STATE_FILE
 
 
 class Colors:
@@ -89,8 +102,8 @@ class Logger:
 class StateManager:
     """Manages the .dotfiles-state file for tracking installations"""
 
-    def __init__(self, state_file: Path = STATE_FILE):
-        self.state_file = state_file
+    def __init__(self, state_file: Path | None = None):
+        self.state_file = _resolve_state_file(state_file)
         self.installations: list[dict[str, Any]] = []
 
     def add(self, item_type: str, source: str, dest: Path, backup_created: bool) -> None:
@@ -104,14 +117,20 @@ class StateManager:
         })
 
     def save(self) -> None:
-        """Save state to JSON file (deduplicates by destination)."""
+        """Save state to JSON file (deduplicates by destination).
+
+        Writes atomically: dump to a sibling temp file, then os.replace onto
+        the real path so a crash mid-write cannot leave a truncated JSON file.
+        """
         merged = {e['destination']: e for e in self.installations}
         state = {
             'version': '1.0',
             'installed': list(merged.values())
         }
-        with open(self.state_file, 'w') as f:
+        tmp = self.state_file.with_suffix(self.state_file.suffix + '.tmp')
+        with open(tmp, 'w') as f:
             json.dump(state, f, indent=2)
+        os.replace(tmp, self.state_file)
 
     def load(self) -> list[dict[str, Any]]:
         """Load state from JSON file"""
@@ -221,13 +240,11 @@ def create_symlink(source: Path, dest: Path, dry_run: bool = False, logger: Logg
             logger.error(f"Source does not exist: {source}")
         return False
 
-    # Ensure parent directory exists
-    dest.parent.mkdir(parents=True, exist_ok=True)
-
     if logger:
         logger.debug(f"Creating symlink: {dest} -> {source}")
 
     if not dry_run:
+        dest.parent.mkdir(parents=True, exist_ok=True)
         try:
             dest.symlink_to(source)
         except OSError as e:
@@ -295,7 +312,12 @@ def is_managed_symlink(path: Path, dotfiles_dir: Path) -> bool:
         if not target.is_absolute():
             target = (path.parent / target).resolve()
 
-        return str(target).startswith(str(dotfiles_dir))
+        # is_relative_to avoids the prefix-match pitfall of str.startswith,
+        # e.g. /home/me/dotfiles-old is NOT under /home/me/dotfiles.
+        try:
+            return target.is_relative_to(dotfiles_dir)
+        except ValueError:
+            return False
     except OSError:
         return False
 
