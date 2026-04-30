@@ -26,19 +26,15 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
     logger.debug(f"  Source: {source}")
     logger.debug(f"  Destination: {dest}")
 
-    # Validate source exists and is the right type
-    if not source.exists():
-        logger.error(f"Source {kind} does not exist: {source}", indent=True)
-        counters['errors'] += 1
-        return
-
-    if kind == 'dir' and not source.is_dir():
-        logger.error(f"Source is not a directory: {source}", indent=True)
-        counters['errors'] += 1
-        return
-
-    if kind == 'file' and not source.is_file():
-        logger.error(f"Source is not a file: {source}", indent=True)
+    # Validate source exists and is the right type. Triggers only when the
+    # repo itself is broken (sources are checked into git), so a single
+    # combined message is fine.
+    if (
+        not source.exists()
+        or (kind == 'dir' and not source.is_dir())
+        or (kind == 'file' and not source.is_file())
+    ):
+        logger.error(f"Source {kind} missing or wrong type: {source}", indent=True)
         counters['errors'] += 1
         return
 

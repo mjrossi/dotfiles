@@ -102,26 +102,27 @@ class StateManager:
         self.installations: list[dict[str, Any]] = []
 
     def add(self, item_type: str, source: str, dest: Path, backup_created: bool) -> None:
-        """Add an installation record"""
-        self.installations.append({
+        """Add (or replace) an installation record, keyed by destination."""
+        record = {
             'type': item_type,
             'source': source,
             'destination': str(dest),
             'backup_created': backup_created,
-            'timestamp': datetime.now().isoformat()
-        })
+            'timestamp': datetime.now().isoformat(),
+        }
+        for i, existing in enumerate(self.installations):
+            if existing['destination'] == record['destination']:
+                self.installations[i] = record
+                return
+        self.installations.append(record)
 
     def save(self) -> None:
-        """Save state to JSON file (deduplicates by destination).
+        """Save state to JSON file.
 
         Writes atomically: dump to a sibling temp file, then os.replace onto
         the real path so a crash mid-write cannot leave a truncated JSON file.
         """
-        merged = {e['destination']: e for e in self.installations}
-        state = {
-            'version': '1.0',
-            'installed': list(merged.values())
-        }
+        state = {'version': '1.0', 'installed': self.installations}
         tmp = self.state_file.with_suffix(self.state_file.suffix + '.tmp')
         with open(tmp, 'w') as f:
             json.dump(state, f, indent=2)
@@ -363,15 +364,11 @@ def build_arg_parser(
 
 
 def run_main(main_fn: Callable[[], None], action_name: str) -> None:
-    """Invoke main_fn, handling Ctrl-C and unexpected exceptions uniformly."""
+    """Invoke main_fn, handling Ctrl-C cleanly. Other exceptions propagate
+    so Python's default traceback does the reporting."""
     try:
         main_fn()
     except KeyboardInterrupt:
         print()
         print(f"{action_name} interrupted by user")
         sys.exit(130)
-    except Exception as e:
-        print(f"Unexpected error: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
