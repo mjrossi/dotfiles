@@ -9,7 +9,7 @@ return {
     ft = { "ruby" },
     config = function()
         local capabilities = require("cmp_nvim_lsp").default_capabilities()
-        local on_attach = require("mjrossi.plugins.lsp.on_attach")
+        local on_attach = require("mjrossi.lsp.on_attach")
 
         require("ruby-lsp").setup({
             server = {

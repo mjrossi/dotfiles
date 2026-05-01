@@ -6,7 +6,7 @@ return {
     },
     config = function()
         local cmp_nvim_lsp = require("cmp_nvim_lsp")
-        local on_attach = require("mjrossi.plugins.lsp.on_attach")
+        local on_attach = require("mjrossi.lsp.on_attach")
 
         -- Default capabilities with completion support
         local capabilities = cmp_nvim_lsp.default_capabilities()
