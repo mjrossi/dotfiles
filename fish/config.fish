@@ -67,7 +67,7 @@ set -g fish_pager_color_progress c0caf5 --background=3b4261
 set -g fish_pager_color_selected_background --background=3b4261
 
 set -gx EDITOR nvim
-set -gx SSH_AUTH_SOCK "$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+set -gx SSH_AUTH_SOCK "$HOME/.ssh/proton-pass-agent.sock"
 set -gx GPG_TTY (tty)
 
 abbr vi 'nvim'

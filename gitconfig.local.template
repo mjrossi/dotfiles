@@ -6,6 +6,12 @@
   # Your email for this machine (work or personal)
   email = your.email@example.com
 
-  # Your SSH signing key from 1Password
-  # To find your key: Open 1Password → SSH key → "Configure Commit Signing"
+  # Your SSH signing public key
+  # To find it after the Proton Pass agent is running: `ssh-add -L`
+  # Or inside Proton Pass: open the SSH key item → copy the public key.
   signingkey = ssh-ed25519 AAAA...your-public-key-here...
+
+# After setting email and signingkey above, generate the allowed_signers file
+# so `git log --show-signature` can verify commits locally:
+#   printf '%s %s\n' "$(git config user.email)" "$(git config user.signingkey)" > ~/.ssh/allowed_signers
+#   chmod 600 ~/.ssh/allowed_signers

@@ -28,6 +28,8 @@ CONFIG_FILES: dict[str, Path] = {
     'gitconfig': Path.home() / '.gitconfig',
     'gitignore_global': Path.home() / '.gitignore_global',
     'ssh/config': Path.home() / '.ssh' / 'config',
+    'launchd/com.proton.pass-cli.ssh-agent.plist':
+        Path.home() / 'Library' / 'LaunchAgents' / 'com.proton.pass-cli.ssh-agent.plist',
 }
 
 # State file location. Override via DOTFILES_STATE_FILE for isolated test
