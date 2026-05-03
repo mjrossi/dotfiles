@@ -144,6 +144,58 @@ def generate_zellij_config(zellij_config_dir, dry_run, logger):
     return detail
 
 
+def bootstrap_launch_agents(dotfiles_dir, dry_run, logger):
+    """Load any plists under launchd/ into the user's launchd domain if not already loaded.
+
+    macOS only. Idempotent: a `launchctl print` probe is used to detect already-loaded
+    agents and skip them so we don't churn a running service on every install.
+    """
+    if sys.platform != 'darwin':
+        return
+
+    launchd_dir = dotfiles_dir / 'launchd'
+    if not launchd_dir.is_dir():
+        return
+
+    plists = sorted(launchd_dir.glob('*.plist'))
+    if not plists:
+        return
+
+    uid = os.getuid()
+    for plist in plists:
+        label = plist.stem  # e.g. com.proton.pass-cli.ssh-agent
+        installed = Path.home() / 'Library' / 'LaunchAgents' / plist.name
+        service_target = f'gui/{uid}/{label}'
+
+        if not installed.exists():
+            logger.debug(f"LaunchAgent symlink missing for {label}, skipping bootstrap")
+            continue
+
+        probe = subprocess.run(
+            ['launchctl', 'print', service_target],
+            capture_output=True, text=True,
+        )
+        if probe.returncode == 0:
+            logger.debug(f"LaunchAgent already loaded: {label}")
+            continue
+
+        if dry_run:
+            logger.info(f"Would bootstrap LaunchAgent: {label}", indent=True)
+            continue
+
+        result = subprocess.run(
+            ['launchctl', 'bootstrap', f'gui/{uid}', str(installed)],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            logger.success(f"Bootstrapped LaunchAgent: {label}", indent=True)
+        else:
+            logger.warning(
+                f"launchctl bootstrap failed for {label}: {result.stderr.strip() or result.stdout.strip()}",
+                indent=True,
+            )
+
+
 def install_brewfile(dotfiles_dir, args, logger):
     """Install Brewfile packages idempotently.
 
@@ -259,6 +311,9 @@ Examples:
     )
     if zellij_detail:
         generated.append(f"zellij/config.kdl ({zellij_detail})")
+
+    # Special handling for macOS LaunchAgents: bootstrap any plists we manage
+    bootstrap_launch_agents(dotfiles_dir, args.dry_run, logger)
 
     # Install Brewfile packages (idempotent, opt-out friendly)
     install_brewfile(dotfiles_dir, args, logger)
