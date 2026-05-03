@@ -1,7 +1,9 @@
 tap "tbvdm/tap"
+tap "protonpass/tap"
 
 brew "mise"
 brew "fish"
+brew "protonpass/tap/pass-cli"
 
 brew "gnupg"
 brew "pinentry-mac"
