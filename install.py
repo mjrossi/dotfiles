@@ -93,8 +93,29 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
         counters['errors'] += 1
 
 
+def _chmod_600(path, label, dry_run, logger):
+    """chmod a single file to 600 unless it already is. Returns True if changed."""
+    # is_file() follows symlinks and is True only when the link resolves,
+    # so a broken symlink won't raise FileNotFoundError here.
+    if not path.is_file():
+        return False
+
+    perms = oct(os.stat(path).st_mode)[-3:]
+    if perms == '600':
+        return False
+
+    logger.debug(f"Fixing {label} permissions: {perms} -> 600")
+    if not dry_run:
+        os.chmod(path, 0o600)
+    logger.success(f"Set {label} permissions to 600", indent=True)
+    return True
+
+
 def fix_ssh_permissions(ssh_dir, dry_run, logger):
-    """Ensure ~/.ssh is 700 and ~/.ssh/config is 600. No-op when already correct."""
+    """Ensure ~/.ssh is 700, and config plus any private key is 600.
+
+    No-op for anything already correct.
+    """
     if not ssh_dir.exists():
         return
 
@@ -105,16 +126,15 @@ def fix_ssh_permissions(ssh_dir, dry_run, logger):
             os.chmod(ssh_dir, 0o700)
         logger.success("Set ~/.ssh directory permissions to 700", indent=True)
 
-    ssh_config = ssh_dir / 'config'
-    # is_file() follows symlinks and is True only when the link resolves,
-    # so a broken ~/.ssh/config symlink won't raise FileNotFoundError here.
-    if ssh_config.is_file():
-        config_perms = oct(os.stat(ssh_config).st_mode)[-3:]
-        if config_perms != '600':
-            logger.debug(f"Fixing ~/.ssh/config permissions: {config_perms} -> 600")
-            if not dry_run:
-                os.chmod(ssh_config, 0o600)
-            logger.success("Set ~/.ssh/config permissions to 600", indent=True)
+    _chmod_600(ssh_dir / 'config', '~/.ssh/config', dry_run, logger)
+
+    # Private keys: id_* without a .pub suffix. ssh refuses a key that is
+    # group- or world-readable, and the executable bit some of these have
+    # picked up over the years is just noise.
+    for key in sorted(ssh_dir.glob('id_*')):
+        if key.suffix == '.pub':
+            continue
+        _chmod_600(key, f"~/.ssh/{key.name}", dry_run, logger)
 
 
 def generate_zellij_config(zellij_config_dir, dry_run, logger):

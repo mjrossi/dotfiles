@@ -7,6 +7,10 @@ Host *
     AddKeysToAgent yes
     UseKeychain yes
     IdentityFile ~/.ssh/id_ed25519
+    # Offer only the key above. Without this ssh also offers every default
+    # identity, including the stale ~/.ssh/id_rsa from 2017. Safe with the
+    # agent: Proton serves this same key, so its public half is listed here.
+    IdentitiesOnly yes
 
 Host mjrnas.tail1737c.ts.net
     HostName mjrnas.tail1737c.ts.net
