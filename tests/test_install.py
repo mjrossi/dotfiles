@@ -414,6 +414,38 @@ class TestFixSSHPermissions(unittest.TestCase):
             Path(self.test_dir) / "no-ssh", dry_run=False, logger=self.logger
         )
 
+    def test_private_keys_fixed_to_600(self):
+        for name, mode in (("id_ed25519", 0o700), ("id_rsa", 0o644)):
+            (self.ssh_dir / name).write_text("PRIVATE KEY\n")
+            os.chmod(str(self.ssh_dir / name), mode)
+
+        install.fix_ssh_permissions(self.ssh_dir, dry_run=False, logger=self.logger)
+
+        self.assertEqual(self._perms(self.ssh_dir / "id_ed25519"), '600')
+        self.assertEqual(self._perms(self.ssh_dir / "id_rsa"), '600')
+
+    def test_public_keys_and_unrelated_files_untouched(self):
+        pub = self.ssh_dir / "id_ed25519.pub"
+        pub.write_text("ssh-ed25519 AAAA...\n")
+        os.chmod(str(pub), 0o644)
+        known = self.ssh_dir / "known_hosts"
+        known.write_text("github.com ssh-ed25519 AAAA...\n")
+        os.chmod(str(known), 0o644)
+
+        install.fix_ssh_permissions(self.ssh_dir, dry_run=False, logger=self.logger)
+
+        self.assertEqual(self._perms(pub), '644')
+        self.assertEqual(self._perms(known), '644')
+
+    def test_private_key_dry_run_does_not_change_perms(self):
+        key = self.ssh_dir / "id_ed25519"
+        key.write_text("PRIVATE KEY\n")
+        os.chmod(str(key), 0o700)
+
+        install.fix_ssh_permissions(self.ssh_dir, dry_run=True, logger=self.logger)
+
+        self.assertEqual(self._perms(key), '700')
+
 
 class TestProcessItem(DotfilesTestCase):
     """Exercise the real install.process_item on a sandboxed filesystem."""
