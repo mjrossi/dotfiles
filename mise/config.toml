@@ -12,19 +12,22 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "aqua:mikefarah/yq" = "latest"
 "aqua:neovim/neovim" = "latest"
 "aqua:sharkdp/fd" = "latest"
+"aqua:tree-sitter/tree-sitter" = "latest" # nvim-treesitter (main branch) shells out to the CLI to build parsers
 "aqua:zellij-org/zellij" = "latest"
 "pipx:httpie" = "latest"
 go = { version = "1.26", postinstall = "mise install_go_tools" }
-node = "25"
+node = "26"
 python = "3.14"
+ruby = "4" # /usr/bin/ruby is 2.6.10; ruby-lsp + rubocop need a modern one
 
 [settings]
 experimental = true
+idiomatic_version_file_enable_tools = ["ruby"] # honour per-project .ruby-version
 python.uv_venv_auto = true
 
 [env]
 MISE_ENV = "development"
-MACOSX_DEPLOYMENT_TARGET = "26.4" # bump after major macOS upgrades (sw_vers -productVersion)
+MACOSX_DEPLOYMENT_TARGET = "{{ exec(command='sw_vers -productVersion | cut -d. -f1-2') }}"
 
 [tasks.install_go_tools]
 description = "Install Go Tools Specific to a Version of Go"
