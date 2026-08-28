@@ -27,6 +27,11 @@ local opts = {
   change_detection = {
     notify = false,
   },
+  -- No plugin here requires luarocks, so skip the hererocks bootstrap entirely
+  -- rather than let it fail and report an error on every health check.
+  rocks = {
+    enabled = false,
+  },
 }
 
 require("lazy").setup(plugins, opts)

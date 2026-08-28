@@ -1,12 +1,14 @@
 redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 
 [tools]
+"aqua:BurntSushi/ripgrep" = "latest" # telescope live_grep / grep_string; nvim spawns processes without the shell, so a shell alias is not enough
 "aqua:anthropics/claude-code" = "latest"
 "aqua:astral-sh/uv" = "latest"
 "aqua:casey/just" = "latest"
 "aqua:charmbracelet/gum" = "latest"
 "aqua:cli/cli" = "latest"
 "aqua:fullstorydev/grpcurl" = "latest"
+"aqua:jesseduffield/lazygit" = "latest"
 "aqua:jqlang/jq" = "latest"
 "aqua:koalaman/shellcheck" = "latest"
 "aqua:mikefarah/yq" = "latest"

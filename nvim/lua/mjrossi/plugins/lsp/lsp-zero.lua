@@ -1,6 +1,12 @@
 return {
     "neovim/nvim-lspconfig",
-    event = { "BufReadPre", "BufNewFile" },
+    -- Eager, not BufReadPre: mason-lspconfig's automatic_enable calls
+    -- vim.lsp.enable() at startup, which needs lspconfig's lsp/ dir already on
+    -- the runtimepath. Lazy-loading it inverted that order, so :checkhealth
+    -- reported "config not found" for every server and a buffer created without
+    -- a BufReadPre (:enew + :set ft=go) started its server before the
+    -- vim.lsp.config('*') defaults below were registered.
+    lazy = false,
     dependencies = {
         "hrsh7th/cmp-nvim-lsp",
     },
