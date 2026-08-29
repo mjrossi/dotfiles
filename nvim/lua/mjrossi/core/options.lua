@@ -29,3 +29,16 @@ vim.opt.expandtab = true
 vim.opt.wildmenu = true
 vim.opt.termguicolors = true
 vim.opt.colorcolumn = "80"
+
+-- Always reserve the sign column. gitsigns and diagnostics both draw here, so
+-- without this the text shifts sideways the moment either appears.
+vim.opt.signcolumn = "yes"
+-- Persist undo across sessions.
+vim.opt.undofile = true
+-- Case-insensitive search until the pattern contains a capital.
+vim.opt.ignorecase = true
+vim.opt.smartcase = true
+-- Open splits where the eye already is.
+vim.opt.splitright = true
+vim.opt.splitbelow = true
+vim.opt.scrolloff = 4

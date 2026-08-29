@@ -1,13 +1,8 @@
 return {
 	"coder/claudecode.nvim",
-	dependencies = {
-		{
-			"folke/snacks.nvim",
-			priority = 1000,
-			lazy = false,
-			opts = {},
-		},
-	},
+	-- snacks owns its own spec in plugins/snacks.lua; it is only named here so
+	-- lazy loads it first.
+	dependencies = { "folke/snacks.nvim" },
 	config = true,
 	keys = {
 		{ "<leader>a",  nil,                              desc = "AI/Claude Code" },

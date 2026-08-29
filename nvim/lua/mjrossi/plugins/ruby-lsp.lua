@@ -5,16 +5,15 @@ return {
     "adam12/ruby-lsp.nvim",
     dependencies = {
         "neovim/nvim-lspconfig",
+        "saghen/blink.cmp",
     },
     ft = { "ruby" },
     config = function()
-        local capabilities = require("cmp_nvim_lsp").default_capabilities()
-        local on_attach = require("mjrossi.lsp.on_attach")
+        local capabilities = require("blink.cmp").get_lsp_capabilities()
 
         require("ruby-lsp").setup({
             server = {
                 capabilities = capabilities,
-                on_attach = on_attach,
             },
         })
     end,

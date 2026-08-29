@@ -4,10 +4,11 @@ return {
     config = function()
         local lint = require("lint")
 
+        -- No python entry: the ruff language server publishes those
+        -- diagnostics itself, so linting here would duplicate them.
         lint.linters_by_ft = {
-            python = { "pylint" },
             ruby = { "rubocop" },
-            go = { "golangci-lint" },
+            go = { "golangcilint" },
         }
 
         vim.api.nvim_create_autocmd({ "BufWritePost", "BufReadPost", "InsertLeave" }, {

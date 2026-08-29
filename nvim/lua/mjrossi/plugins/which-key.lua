@@ -5,7 +5,7 @@ return {
         spec = {
             { "<leader>a", group = "AI / Claude" },
             { "<leader>c", group = "Code" },
-            { "<leader>f", group = "Find (Telescope)" },
+            { "<leader>f", group = "Find (Snacks)" },
             { "<leader>g", group = "Git" },
             { "<leader>h", group = "Hunk (Git)" },
             { "<leader>n", group = "Nav / NvimTree" },

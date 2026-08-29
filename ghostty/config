@@ -11,13 +11,28 @@ window-padding-y = 4
 macos-titlebar-style = tabs
 
 # Shell
+#
+# Ghostty sets GHOSTTY_SHELL_FEATURES and injects XDG_DATA_DIRS from this, but
+# its fish snippet does not actually load: Ghostty points fish at
+# <Resources>/fish/vendor_conf.d, which holds only completions, while the
+# integration ships under <Resources>/ghostty/shell-integration/fish/.
+#
+# It does not matter. fish 4.x emits the sequences natively -- OSC 133 (prompt
+# and command marks), OSC 7 (cwd) and OSC 0 (title) are compiled into the fish
+# binary. That is what Zellij's Ctrl-s command scrolling reads, and being
+# terminal-independent it keeps working inside a pane.
 shell-integration = fish
 
 # Cursor
-cursor-style = block
+# (cursor-style is left unset: "block" is already the default)
 cursor-style-blink = false
 
+# Mouse
+mouse-hide-while-typing = true
+
 # macOS
+# Required for Zellij's Alt bindings (Alt f, Alt arrows, Alt [ / ]) to reach it
+# rather than being swallowed as macOS option-key characters.
 macos-option-as-alt = true
 
 # Keybindings

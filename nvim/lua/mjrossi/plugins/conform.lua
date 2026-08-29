@@ -12,7 +12,7 @@ return {
     opts = {
         formatters_by_ft = {
             lua = { "stylua" },
-            python = { "isort", "black" }, -- isort first for import ordering, then black
+            python = { "ruff_organize_imports", "ruff_format" },
             ruby = { "rubocop" },
             go = { "goimports" },          -- goimports includes gofmt; no need for both
             yaml = { "prettier" },
@@ -20,7 +20,7 @@ return {
         },
         format_on_save = {
             timeout_ms = 500,
-            lsp_fallback = true, -- fall back to LSP formatting for unconfigured filetypes
+            lsp_format = "fallback", -- fall back to LSP formatting for unconfigured filetypes
         },
     },
 }

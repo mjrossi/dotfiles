@@ -370,7 +370,7 @@ Examples:
         logger.info("Next steps:")
         print("  - Restart your shell or run: exec $SHELL")
         print("  - Open nvim to initialize plugins (first run)")
-        print("  - Auto-generated files (fish_variables, lazy-lock.json) will be created automatically")
+        print("  - Auto-generated files (fish_variables) will be created automatically")
 
     if counters['errors'] > 0:
         print()

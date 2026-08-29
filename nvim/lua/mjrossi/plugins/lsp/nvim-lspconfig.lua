@@ -8,29 +8,24 @@ return {
     -- vim.lsp.config('*') defaults below were registered.
     lazy = false,
     dependencies = {
-        "hrsh7th/cmp-nvim-lsp",
+        "saghen/blink.cmp",
     },
     config = function()
-        local cmp_nvim_lsp = require("cmp_nvim_lsp")
-        local on_attach = require("mjrossi.lsp.on_attach")
-
-        -- Default capabilities with completion support
-        local capabilities = cmp_nvim_lsp.default_capabilities()
-
-        -- Apply shared capabilities and on_attach to all servers
-        -- Individual server configs below will merge/override as needed
+        -- Shared capabilities for every server. Keymaps are wired separately
+        -- by the LspAttach autocmd in mjrossi.lsp.attach.
         vim.lsp.config('*', {
-            capabilities = capabilities,
-            on_attach = on_attach,
+            capabilities = require("blink.cmp").get_lsp_capabilities(),
         })
 
-        -- Configure gopls using new nvim 0.11 API
+        -- Each block below carries only what differs from the definition
+        -- nvim-lspconfig ships in its lsp/<name>.lua. Per :h lsp-config, those
+        -- files are merged in ahead of anything set here, so repeating cmd,
+        -- filetypes or root_markers would only shadow a better upstream value
+        -- (gopls resolves its root through GOMODCACHE/GOROOT; yamlls prefers a
+        -- project-local node_modules binary; both are functions we cannot
+        -- express as a static list).
+
         vim.lsp.config.gopls = {
-            cmd = { "gopls" },
-            filetypes = { "go", "gomod", "gowork", "gotmpl" },
-            root_markers = { "go.work", "go.mod", ".git" },
-            capabilities = capabilities,
-            on_attach = on_attach,
             settings = {
                 gopls = {
                     analyses = {
@@ -42,13 +37,7 @@ return {
             },
         }
 
-        -- Configure lua_ls using new nvim 0.11 API
         vim.lsp.config.lua_ls = {
-            cmd = { "lua-language-server" },
-            filetypes = { "lua" },
-            root_markers = { ".luarc.json", ".luarc.jsonc", ".luacheckrc", ".stylua.toml", "stylua.toml", "selene.toml", "selene.yml", ".git" },
-            capabilities = capabilities,
-            on_attach = on_attach,
             settings = {
                 Lua = {
                     runtime = {
@@ -65,13 +54,7 @@ return {
             },
         }
 
-        -- Configure yamlls using new nvim 0.11 API
         vim.lsp.config.yamlls = {
-            cmd = { "yaml-language-server", "--stdio" },
-            filetypes = { "yaml", "yaml.docker-compose", "yaml.gitlab" },
-            root_markers = { ".git" },
-            capabilities = capabilities,
-            on_attach = on_attach,
             settings = {
                 yaml = {
                     schemas = {
@@ -82,14 +65,12 @@ return {
             },
         }
 
-        -- Configure pyright to use the mise-managed Python shim.
-        -- The shim resolves to the correct Python version based on the project's .mise.toml.
+        -- Python is split between two servers: pyright does type checking,
+        -- ruff does linting and formatting. mjrossi.lsp.attach turns off ruff's
+        -- hover so pyright owns K rather than the two answering over each other.
+        -- pyright is pointed at the mise-managed Python shim, which resolves to
+        -- the correct version for the project's .mise.toml.
         vim.lsp.config.pyright = {
-            cmd = { "pyright-langserver", "--stdio" },
-            filetypes = { "python" },
-            root_markers = { "pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "pyrightconfig.json", ".git" },
-            capabilities = capabilities,
-            on_attach = on_attach,
             settings = {
                 python = {
                     pythonPath = vim.fn.expand("~/.local/share/mise/shims/python"),
@@ -101,6 +82,7 @@ return {
         vim.lsp.enable("gopls")
         vim.lsp.enable("lua_ls")
         vim.lsp.enable("pyright")
+        vim.lsp.enable("ruff")
         vim.lsp.enable("yamlls")
     end,
 }

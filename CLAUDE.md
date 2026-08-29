@@ -72,6 +72,29 @@ python3 tests/test_install.py
 
 `.dotfiles-state` (JSON, gitignored) records every installed symlink with its source, destination, backup path, and timestamp. `uninstall.py` uses this to know exactly what to remove.
 
+### Fish startup layout
+
+Startup config lives in `fish/conf.d/`, which fish sources **before** `config.fish`, sorted by filename. The numeric prefixes encode a dependency order, so a new fragment goes at the position its dependencies allow, not just at the end:
+
+| File | Runs | Holds |
+|---|---|---|
+| `00-homebrew.fish` | always | Homebrew env, before anything that needs brew paths |
+| `10-paths.fish` | always | `~/.local/bin`, prepended after Homebrew so it wins |
+| `20-env.fish` | always | `EDITOR`, `SSH_AUTH_SOCK` |
+| `30-interactive.fish` | interactive only | colours, abbreviations, `GPG_TTY` |
+| `github-token.fish` | first prompt | `GITHUB_TOKEN` from `gh` |
+
+`config.fish` itself holds only the `config.local.fish` include, which must run last so it can override everything above.
+
+Two rules that are easy to get wrong:
+
+- **Anything a script, editor, or launchd job needs goes in `20-env.fish`**, outside the `status is-interactive; or exit` guard in `30-interactive.fish`. Everything else belongs behind that guard — a `tty` call or a colour variable costs a process spawn or does nothing in `fish -c`.
+- **`00-homebrew.fish` is a hand transcription of `brew shellenv fish`**, inlined because shelling out cost ~21ms on every shell start to print constant output. Regenerate it from `brew shellenv fish` if Homebrew changes what it exports; don't hand-edit the exports.
+
+Prefer `set -g` over the default universal scope for path variables. A universal `fish_user_paths` is written into `fish_variables` and then applies forever regardless of what this repo says — that is how `~/.local/bin` previously ended up ordered by accident, silently turning `config.fish`'s own `fish_add_path` into a no-op.
+
 ### Zellij special case
 
-Zellij doesn't support config includes. `install.py` always regenerates `config.kdl` by copying `config.shared.kdl` and appending `config.local.kdl` if it exists. Edit `config.shared.kdl` for shared keybindings; never edit `config.kdl` directly.
+Zellij doesn't support config includes. `install.py` always regenerates `config.kdl` by copying `config.shared.kdl` and appending `config.local.kdl` if it exists. Edit `config.shared.kdl` for shared options; never edit `config.kdl` directly.
+
+`config.shared.kdl` holds **options only** — no `keybinds` block. Zellij's default keybindings are inherited wholesale so that each release's new bindings arrive automatically. It previously carried `keybinds clear-defaults=true` plus a verbatim copy of the defaults, which froze the keymap at the version it was copied from and silently suppressed everything added since. Only add a `keybinds` block for a binding that genuinely differs from upstream, and never with `clear-defaults=true`.
