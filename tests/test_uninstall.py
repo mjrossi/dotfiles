@@ -4,12 +4,15 @@ Unit tests for uninstall.py - dotfiles uninstallation script.
 """
 
 import io
+import json
+import os
 import unittest
 import tempfile
 import shutil
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 import sys
+from unittest import mock
 
 # Add repo root to path so `lib`, `uninstall`, and `tests._helpers` all import
 # whether we're running via `python3 -m unittest discover` or `python3 tests/test_uninstall.py`.
@@ -306,6 +309,63 @@ class TestRestoreBackupMissing(unittest.TestCase):
         result = restore_backup(dest, dry_run=True, logger=self.logger)
 
         self.assertFalse(result)
+
+
+class TestRecordedBackupRestoration(DotfilesTestCase):
+    """Uninstall restores only the backup recorded by its matching install."""
+
+    def _run_uninstall(self, state_items):
+        state_file = Path(self.test_dir) / '.dotfiles-state'
+        state_file.write_text(json.dumps({'version': '1.1', 'installed': state_items}))
+        with mock.patch.object(uninstall, 'get_dotfiles_dir', return_value=self.dotfiles_dir), \
+             mock.patch.object(sys, 'argv', ['uninstall.py', '--force']), \
+             mock.patch.dict(os.environ, {'DOTFILES_STATE_FILE': str(state_file)}), \
+             redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as raised:
+                uninstall.main()
+        self.assertEqual(raised.exception.code, 0)
+
+    def test_does_not_restore_stale_backup_when_install_created_none(self):
+        source = self.dotfiles_dir / 'fish'
+        source.mkdir()
+        dest = self.config_dir / 'fish'
+        dest.symlink_to(source)
+        stale = self.config_dir / 'fish.bak'
+        stale.mkdir()
+        (stale / 'marker').write_text('unrelated')
+
+        self._run_uninstall([{
+            'type': 'dir',
+            'source': 'fish',
+            'destination': str(dest),
+            'backup_created': False,
+        }])
+
+        self.assertFalse(dest.exists())
+        self.assertTrue(stale.exists())
+
+    def test_restores_exact_recorded_backup_not_newer_stale_backup(self):
+        source = self.dotfiles_dir / 'fish'
+        source.mkdir()
+        dest = self.config_dir / 'fish'
+        dest.symlink_to(source)
+        recorded = self.config_dir / 'fish.bak'
+        recorded.mkdir()
+        (recorded / 'marker').write_text('recorded')
+        stale = self.config_dir / 'fish.bak.1'
+        stale.mkdir()
+        (stale / 'marker').write_text('unrelated')
+
+        self._run_uninstall([{
+            'type': 'dir',
+            'source': 'fish',
+            'destination': str(dest),
+            'backup_created': True,
+            'backup_path': str(recorded),
+        }])
+
+        self.assertEqual((dest / 'marker').read_text(), 'recorded')
+        self.assertTrue(stale.exists())
 
 
 if __name__ == '__main__':

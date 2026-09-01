@@ -36,6 +36,8 @@ nvim/
         ├── conform.lua             # Formatter chains + format-on-save
         ├── which-key.lua           # Keymap hint popup
         ├── claudecode.lua          # Claude Code AI integration
+        ├── mise.lua                # Refreshes mise environment after :cd
+        ├── ruby-lsp.lua            # mise-aware Ruby LSP lifecycle
         └── lsp/
             ├── nvim-lspconfig.lua  # LSP config — capabilities and per-server settings
             ├── mason.lua           # Language server + tool installer
@@ -50,16 +52,16 @@ nvim/
 | Plugin | Purpose | Loads On |
 |--------|---------|----------|
 | tokyonight.nvim | Color scheme | startup |
-| nvim-tree.lua | File explorer | startup |
+| nvim-tree.lua | File explorer | `:NvimTree*` or `\nt`/`\nf` |
 | nvim-treesitter | Syntax trees, highlight, indent | startup |
 | gitsigns.nvim | Git hunk signs in gutter | BufReadPre/BufNewFile |
 | nvim-surround | Add/change/delete surroundings | VeryLazy |
 | nvim-autopairs | Auto-close `()`, `{}`, `""`, etc. | InsertEnter |
-| fidget.nvim | LSP loading progress indicator | startup |
-| nvim-lint | Async linting via external tools | BufReadPre/BufNewFile |
+| fidget.nvim | LSP loading progress indicator | LspAttach |
+| nvim-lint | Async linting via external tools | ft=go/ruby |
 | conform.nvim | Formatter chains + format-on-save | BufWritePre |
 | which-key.nvim | Keymap hint popup on `<leader>` | VeryLazy |
-| mise.nvim | Re-applies mise env on `:cd` so LSP/tools stay correct per project | startup |
+| mise.nvim | Re-applies mise env on `:cd` so LSP/tools stay correct per project | DirChanged / `:Mise` |
 | ruby-lsp.nvim | Manages ruby-lsp gem per active Ruby version (mise-aware) | ft=ruby |
 | claudecode.nvim | Claude Code terminal integration | keys |
 | snacks.nvim | Picker (replaces telescope) + UI primitives for claudecode | startup |
@@ -82,13 +84,15 @@ nvim/
 | Lua | lua_ls | stylua | — |
 | YAML | yamlls | prettier | — |
 | TOML | taplo | taplo | — |
-| Rust | rust_analyzer | (LSP fallback) | — |
-| Elixir | elixirls | (LSP fallback) | — |
+| Rust (optional) | rust_analyzer | (LSP fallback) | — |
+| Elixir (optional) | elixirls | (LSP fallback) | — |
 
 **Notes:**
 - Go: `goimports` handles both import organization and `gofmt` formatting
 - Python: pyright does type checking, ruff does import sorting, formatting and linting. ruff's diagnostics come from its language server, so nvim-lint has no python entry; ruff's hover is disabled on attach so `K` returns pyright's type info. pyright uses the mise Python shim so it resolves to the correct version per `.mise.toml`
 - Ruby: managed by `ruby-lsp.nvim` (not Mason) so the LSP gem matches the active mise Ruby version; rubocop diagnostics come from both ruby_lsp and nvim-lint
+- Rust and Elixir: listed as optional recipes; their servers are not installed by this config. Install them through Mason and add the matching Treesitter parser when needed
+- nvim-lint runs once when a Go/Ruby buffer loads and again after saves; it does not spawn linters on every `InsertLeave`
 - golangci-lint: uses defaults if no `.golangci.yml` present in project root
 - mise shims are prepended to `PATH` at startup — tools resolve to the correct project version even when Neovim is launched from a GUI
 

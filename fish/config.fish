@@ -5,7 +5,6 @@
 #   10-paths.fish        ~/.local/bin, deliberately ahead of Homebrew
 #   20-env.fish          EDITOR, SSH_AUTH_SOCK -- non-interactive shells too
 #   30-interactive.fish  colours, abbreviations, GPG_TTY
-#   github-token.fish    GITHUB_TOKEN from gh, on first prompt
 #
 # What is left here is the machine-specific include, which has to run last so
 # it can override anything above.

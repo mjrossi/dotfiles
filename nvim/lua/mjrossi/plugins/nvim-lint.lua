@@ -1,6 +1,6 @@
 return {
     "mfussenegger/nvim-lint",
-    event = { "BufReadPre", "BufNewFile" },
+    ft = { "go", "ruby" },
     config = function()
         local lint = require("lint")
 
@@ -11,10 +11,23 @@ return {
             go = { "golangcilint" },
         }
 
-        vim.api.nvim_create_autocmd({ "BufWritePost", "BufReadPost", "InsertLeave" }, {
+        local group = vim.api.nvim_create_augroup("mjrossi-lint", { clear = true })
+        vim.api.nvim_create_autocmd("BufWritePost", {
+            group = group,
             callback = function()
                 lint.try_lint()
             end,
         })
+        vim.api.nvim_create_autocmd("FileType", {
+            group = group,
+            pattern = { "go", "ruby" },
+            callback = function()
+                lint.try_lint()
+            end,
+        })
+
+        -- The FileType event that loaded this plugin has already fired, so
+        -- schedule the initial pass for the current buffer explicitly.
+        vim.schedule(lint.try_lint)
     end,
 }

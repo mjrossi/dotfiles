@@ -10,7 +10,8 @@ from pathlib import Path
 # Import from lib.common
 from lib.common import (
     CONFIG_DIRS, CONFIG_FILES, Logger, StateManager,
-    build_arg_parser, get_dotfiles_dir, restore_backup, remove_symlink,
+    build_arg_parser, get_dotfiles_dir, restore_backup, restore_backup_at,
+    remove_symlink,
     is_managed_symlink, prompt_user, run_main,
 )
 
@@ -66,6 +67,24 @@ def preserve_file(file_to_preserve, dest, dry_run, logger):
         return False
 
 
+def restore_item_backup(item, dry_run, logger):
+    """Restore only the backup associated with this installation record.
+
+    State files from version 1.0 stored only a boolean, so those records retain
+    the old discovery behavior. New records store an exact path. A missing
+    state file, or a record that says no backup was created, never consumes a
+    similarly named file that may belong to the user.
+    """
+    recorded_path = item.get('backup_path')
+    if recorded_path:
+        return restore_backup_at(
+            item['dest'], Path(recorded_path), dry_run=dry_run, logger=logger
+        )
+    if item.get('backup_created') is True:
+        return restore_backup(item['dest'], dry_run=dry_run, logger=logger)
+    return False
+
+
 def main():
     """Main uninstallation logic"""
     parser = build_arg_parser(
@@ -107,7 +126,8 @@ Examples:
                 'type': item['type'],
                 'source': item['source'],
                 'dest': dest,
-                'backup_created': item.get('backup_created', False)
+                'backup_created': item.get('backup_created', False),
+                'backup_path': item.get('backup_path'),
             })
     else:
         logger.warning("No state file found, using configuration as fallback")
@@ -119,7 +139,8 @@ Examples:
                 'type': 'dir',
                 'source': source_name,
                 'dest': dest,
-                'backup_created': False  # Unknown
+                'backup_created': None,  # Unknown; do not guess which backup belongs to us
+                'backup_path': None,
             })
 
         for source_name, dest in CONFIG_FILES.items():
@@ -127,7 +148,8 @@ Examples:
                 'type': 'file',
                 'source': source_name,
                 'dest': dest,
-                'backup_created': False  # Unknown
+                'backup_created': None,  # Unknown; do not guess which backup belongs to us
+                'backup_path': None,
             })
 
     # Filter to only managed symlinks
@@ -198,7 +220,7 @@ Examples:
             removed += 1
 
             # Try to restore backup
-            if restore_backup(dest, dry_run=args.dry_run, logger=logger):
+            if restore_item_backup(item, dry_run=args.dry_run, logger=logger):
                 logger.success("Restored backup", indent=True)
                 restored += 1
             else:
