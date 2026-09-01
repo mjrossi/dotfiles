@@ -24,6 +24,7 @@ from lib.common import (
     restore_backup, remove_symlink, is_managed_symlink,
     Logger
 )
+import install
 import uninstall
 
 
@@ -366,6 +367,218 @@ class TestRecordedBackupRestoration(DotfilesTestCase):
 
         self.assertEqual((dest / 'marker').read_text(), 'recorded')
         self.assertTrue(stale.exists())
+
+
+class TestReinstallPreservesRecordedBackup(DotfilesTestCase):
+    """A reinstall that takes no new backup must not orphan the first one.
+
+    `state.add` replaces records keyed by destination, so the two install paths
+    that remove a symlink without backing anything up -- relinking a renamed
+    source, and replacing a symlink left broken by a moved repo -- used to
+    overwrite the recorded `backup_path` with null. The user's pre-dotfiles
+    directory was still on disk, but uninstall no longer knew its name and
+    silently left it there.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.state_file = Path(self.test_dir) / '.dotfiles-state'
+        self.dest = self.config_dir / 'fish'
+
+    def _run_install(self, dotfiles_dir, config_dirs):
+        with mock.patch.object(install, 'CONFIG_DIRS', config_dirs), \
+             mock.patch.object(install, 'CONFIG_FILES', {}), \
+             mock.patch.object(install, 'get_dotfiles_dir', return_value=dotfiles_dir), \
+             mock.patch.object(install, 'fix_ssh_permissions'), \
+             mock.patch.object(install, 'generate_zellij_config', return_value=None), \
+             mock.patch.object(install, 'bootstrap_launch_agents'), \
+             mock.patch.object(install, 'install_brewfile', return_value=True), \
+             mock.patch.object(sys, 'argv', ['install.py', '--force']), \
+             mock.patch.dict(os.environ, {'DOTFILES_STATE_FILE': str(self.state_file)}), \
+             redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as raised:
+                install.main()
+        self.assertEqual(raised.exception.code, 0)
+
+    def _run_uninstall(self, dotfiles_dir):
+        with mock.patch.object(uninstall, 'get_dotfiles_dir', return_value=dotfiles_dir), \
+             mock.patch.object(sys, 'argv', ['uninstall.py', '--force']), \
+             mock.patch.dict(os.environ, {'DOTFILES_STATE_FILE': str(self.state_file)}), \
+             redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as raised:
+                uninstall.main()
+        self.assertEqual(raised.exception.code, 0)
+
+    def _seed_user_config(self):
+        """The pre-dotfiles directory the first install has to back up."""
+        self.dest.mkdir()
+        (self.dest / 'config.fish').write_text('# the user\'s own config')
+
+    def _recorded(self):
+        installed = json.loads(self.state_file.read_text())['installed']
+        return next(r for r in installed if r['destination'] == str(self.dest))
+
+    def test_relinking_a_renamed_source_keeps_the_first_backup(self):
+        (self.dotfiles_dir / 'fish').mkdir()
+        (self.dotfiles_dir / 'fish_new').mkdir()
+        self._seed_user_config()
+
+        self._run_install(self.dotfiles_dir, {'fish': self.dest})
+        first = self._recorded()
+        self.assertEqual(first['backup_path'], str(self.config_dir / 'fish.bak'))
+
+        # Source renamed in CONFIG_DIRS: the symlink is still managed but now
+        # points at the wrong source, so install relinks without backing up.
+        self._run_install(self.dotfiles_dir, {'fish_new': self.dest})
+        after = self._recorded()
+        self.assertEqual(after['source'], 'fish_new')
+        self.assertEqual(after['backup_path'], first['backup_path'])
+        self.assertTrue(after['backup_created'])
+
+        self._run_uninstall(self.dotfiles_dir)
+
+        self.assertEqual(
+            (self.dest / 'config.fish').read_text(), "# the user's own config"
+        )
+        self.assertFalse((self.config_dir / 'fish.bak').exists())
+
+    def test_reinstall_from_a_moved_repo_keeps_the_first_backup(self):
+        (self.dotfiles_dir / 'fish').mkdir()
+        self._seed_user_config()
+
+        self._run_install(self.dotfiles_dir, {'fish': self.dest})
+        first = self._recorded()
+        self.assertEqual(first['backup_path'], str(self.config_dir / 'fish.bak'))
+
+        # Checkout moved: the old symlink now dangles outside the new repo, so
+        # install removes it as a broken symlink -- again with no new backup.
+        moved = Path(self.test_dir) / 'dotfiles-moved'
+        shutil.move(self.dotfiles_dir, moved)
+        (moved / 'fish').mkdir(exist_ok=True)
+        self.assertTrue(self.dest.is_symlink())
+        self.assertFalse(self.dest.exists())
+
+        self._run_install(moved, {'fish': self.dest})
+        after = self._recorded()
+        self.assertEqual(after['backup_path'], first['backup_path'])
+        self.assertTrue(after['backup_created'])
+
+        self._run_uninstall(moved)
+
+        self.assertEqual(
+            (self.dest / 'config.fish').read_text(), "# the user's own config"
+        )
+        self.assertFalse((self.config_dir / 'fish.bak').exists())
+
+
+class TestOwnedBackup(DotfilesTestCase):
+    """The preview, the leftover report, and the restore agree on one file."""
+
+    def test_legacy_record_discovers_highest_numbered_backup(self):
+        dest = self.config_dir / 'fish'
+        (self.config_dir / 'fish.bak').mkdir()
+        (self.config_dir / 'fish.bak.1').mkdir()
+
+        owned = uninstall.owned_backup(
+            {'dest': dest, 'backup_created': True}
+        )
+
+        self.assertEqual(owned, self.config_dir / 'fish.bak.1')
+
+    def test_recorded_path_wins_over_discovery(self):
+        dest = self.config_dir / 'fish'
+        (self.config_dir / 'fish.bak').mkdir()
+        (self.config_dir / 'fish.bak.1').mkdir()
+
+        owned = uninstall.owned_backup({
+            'dest': dest,
+            'backup_created': True,
+            'backup_path': str(self.config_dir / 'fish.bak'),
+        })
+
+        self.assertEqual(owned, self.config_dir / 'fish.bak')
+
+    def test_no_backup_record_owns_nothing(self):
+        dest = self.config_dir / 'fish'
+        (self.config_dir / 'fish.bak').mkdir()
+
+        self.assertIsNone(
+            uninstall.owned_backup({'dest': dest, 'backup_created': False})
+        )
+        self.assertIsNone(
+            uninstall.owned_backup({'dest': dest, 'backup_created': None})
+        )
+
+
+class TestLegacyStateRestoration(DotfilesTestCase):
+    """Version 1.0 records still restore via filename discovery."""
+
+    def test_legacy_backup_created_record_restores_newest_backup(self):
+        source = self.dotfiles_dir / 'fish'
+        source.mkdir()
+        dest = self.config_dir / 'fish'
+        dest.symlink_to(source)
+        newest = self.config_dir / 'fish.bak.1'
+        newest.mkdir()
+        (newest / 'marker').write_text('newest')
+        (self.config_dir / 'fish.bak').mkdir()
+
+        state_file = Path(self.test_dir) / '.dotfiles-state'
+        state_file.write_text(json.dumps({'version': '1.0', 'installed': [{
+            'type': 'dir',
+            'source': 'fish',
+            'destination': str(dest),
+            'backup_created': True,
+        }]}))
+
+        with mock.patch.object(uninstall, 'get_dotfiles_dir', return_value=self.dotfiles_dir), \
+             mock.patch.object(sys, 'argv', ['uninstall.py', '--force']), \
+             mock.patch.dict(os.environ, {'DOTFILES_STATE_FILE': str(state_file)}), \
+             redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as raised:
+                uninstall.main()
+        self.assertEqual(raised.exception.code, 0)
+
+        self.assertEqual((dest / 'marker').read_text(), 'newest')
+
+
+class TestMissingRecordedBackupWarns(DotfilesTestCase):
+    """A recorded backup that vanished is louder than one that never existed."""
+
+    def test_warns_when_recorded_backup_is_gone(self):
+        dest = self.config_dir / 'fish'
+        missing = self.config_dir / 'fish.bak'
+        logger = Logger(verbose=False)
+
+        out = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(io.StringIO()):
+            restored = uninstall.restore_item_backup(
+                {
+                    'dest': dest,
+                    'backup_created': True,
+                    'backup_path': str(missing),
+                },
+                dry_run=False,
+                logger=logger,
+            )
+
+        self.assertFalse(restored)
+        self.assertIn(str(missing), out.getvalue())
+
+    def test_silent_when_record_never_had_a_backup(self):
+        dest = self.config_dir / 'fish'
+        logger = Logger(verbose=False)
+
+        out = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(io.StringIO()):
+            restored = uninstall.restore_item_backup(
+                {'dest': dest, 'backup_created': False},
+                dry_run=False,
+                logger=logger,
+            )
+
+        self.assertFalse(restored)
+        self.assertEqual(out.getvalue(), '')
 
 
 if __name__ == '__main__':

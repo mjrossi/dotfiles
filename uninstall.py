@@ -10,8 +10,8 @@ from pathlib import Path
 # Import from lib.common
 from lib.common import (
     CONFIG_DIRS, CONFIG_FILES, Logger, StateManager,
-    build_arg_parser, get_dotfiles_dir, restore_backup, restore_backup_at,
-    remove_symlink,
+    build_arg_parser, get_dotfiles_dir, discover_backup,
+    restore_backup, restore_backup_at, remove_symlink,
     is_managed_symlink, prompt_user, run_main,
 )
 
@@ -67,18 +67,40 @@ def preserve_file(file_to_preserve, dest, dry_run, logger):
         return False
 
 
-def restore_item_backup(item, dry_run, logger):
-    """Restore only the backup associated with this installation record.
+def owned_backup(item):
+    """Path of the backup this installation record owns, or None.
 
-    State files from version 1.0 stored only a boolean, so those records retain
-    the old discovery behavior. New records store an exact path. A missing
-    state file, or a record that says no backup was created, never consumes a
-    similarly named file that may belong to the user.
+    State files from version 1.0 stored only a boolean, so those records fall
+    back to the old filename discovery. New records name the exact file. A
+    missing state file, or a record that says no backup was created, never
+    claims a similarly named file that may belong to the user.
+
+    Used for the removal preview and the leftover report as well as the
+    restore itself, so all three agree on which file is ours.
     """
     recorded_path = item.get('backup_path')
     if recorded_path:
+        return Path(recorded_path)
+    if item.get('backup_created') is True:
+        return discover_backup(item['dest'])
+    return None
+
+
+def restore_item_backup(item, dry_run, logger):
+    """Restore only the backup associated with this installation record."""
+    recorded_path = item.get('backup_path')
+    if recorded_path:
+        backup = Path(recorded_path)
+        if not backup.exists():
+            # Distinct from "this record never had a backup": the file we
+            # recorded has been moved or deleted since install, and the user
+            # is the only one who can say where it went.
+            logger.warning(
+                f"Recorded backup is missing, not restored: {backup}", indent=True
+            )
+            return False
         return restore_backup_at(
-            item['dest'], Path(recorded_path), dry_run=dry_run, logger=logger
+            item['dest'], backup, dry_run=dry_run, logger=logger
         )
     if item.get('backup_created') is True:
         return restore_backup(item['dest'], dry_run=dry_run, logger=logger)
@@ -176,8 +198,8 @@ Examples:
     logger.info(f"Found {len(managed)} managed symlink(s) to remove:")
     print()
     for item in managed:
-        backup_exists = Path(f"{item['dest']}.bak").exists()
-        backup_info = " (backup exists)" if backup_exists else ""
+        backup = owned_backup(item)
+        backup_info = " (backup exists)" if backup and backup.exists() else ""
         print(f"  - {item['source']} -> {item['dest']}{backup_info}")
 
     print()
@@ -265,8 +287,8 @@ Examples:
         # Check for remaining .bak files
         remaining_backups = []
         for item in managed:
-            backup = Path(f"{item['dest']}.bak")
-            if backup.exists():
+            backup = owned_backup(item)
+            if backup and backup.exists():
                 remaining_backups.append(backup)
 
         if remaining_backups:

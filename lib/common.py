@@ -124,6 +124,17 @@ class StateManager:
         }
         for i, existing in enumerate(self.installations):
             if existing['destination'] == record['destination']:
+                # A reinstall that takes no new backup -- relinking a managed
+                # symlink whose source moved, or replacing a broken one --
+                # must not erase the backup the first install recorded. That
+                # file is still the user's pre-dotfiles content, and uninstall
+                # needs its exact path to put it back.
+                if backup_path is None and not backup_created:
+                    if existing.get('backup_path'):
+                        record['backup_path'] = existing['backup_path']
+                        record['backup_created'] = True
+                    elif existing.get('backup_created') is True:
+                        record['backup_created'] = True
                 self.installations[i] = record
                 return
         self.installations.append(record)
@@ -196,6 +207,26 @@ def backup_path(path: Path, dry_run: bool = False, logger: Logger | None = None)
     return backup
 
 
+def discover_backup(path: Path) -> Path | None:
+    """
+    Find the backup that `restore_backup` would restore, or None.
+
+    Only for legacy 1.0 state records, which know that a backup was taken but
+    not what it was named, so the name has to be guessed back: the
+    highest-numbered `.bak.N` is the newest. Records written by this version
+    carry the exact path instead -- see `restore_backup_at`.
+    """
+    counter = 1
+    while Path(f"{path}.bak.{counter}").exists():
+        counter += 1
+
+    if counter > 1:
+        return Path(f"{path}.bak.{counter - 1}")
+    if Path(f"{path}.bak").exists():
+        return Path(f"{path}.bak")
+    return None
+
+
 def restore_backup(path: Path, dry_run: bool = False, logger: Logger | None = None) -> bool:
     """
     Rename path.bak back to path
@@ -208,16 +239,8 @@ def restore_backup(path: Path, dry_run: bool = False, logger: Logger | None = No
     Returns:
         True if backup was restored, False otherwise
     """
-    # Find the highest-numbered backup first (newest)
-    counter = 1
-    while Path(f"{path}.bak.{counter}").exists():
-        counter += 1
-
-    if counter > 1:
-        backup = Path(f"{path}.bak.{counter - 1}")
-    elif Path(f"{path}.bak").exists():
-        backup = Path(f"{path}.bak")
-    else:
+    backup = discover_backup(path)
+    if backup is None:
         return False
 
     if logger:
