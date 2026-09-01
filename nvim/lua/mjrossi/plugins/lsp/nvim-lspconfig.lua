@@ -31,7 +31,6 @@ return {
                     analyses = {
                         unusedparams = true,
                     },
-                    buildFlags = { '-tags=demo,testdb' },
                     staticcheck = true,
                 },
             },
@@ -46,10 +45,7 @@ return {
                     diagnostics = {
                         globals = { "vim" },
                     },
-                    workspace = {
-                        library = vim.api.nvim_get_runtime_file("", true),
-                        checkThirdParty = false,
-                    },
+                    workspace = { checkThirdParty = false },
                 },
             },
         }

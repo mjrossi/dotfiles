@@ -53,6 +53,7 @@ KEY_LOAD_TIMEOUT=90
 # then only every Nth repeat.
 WAIT_LOG_EVERY=10
 MAX_LOG_BYTES=$((5 * 1024 * 1024))
+AGENT_PID=""
 
 log() {
     printf '[%s] %s\n' "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"
@@ -140,13 +141,15 @@ start_and_supervise() {
 
     log "starting pass-cli ssh-agent"
     "$PASS_CLI" ssh-agent start --socket-path "$SOCKET_PATH" &
-    local pid=$!
+    AGENT_PID=$!
+    local pid=$AGENT_PID
 
     local deadline=$(($(date +%s) + KEY_LOAD_TIMEOUT))
     while [ "$(date +%s)" -lt "$deadline" ]; do
         if ! kill -0 "$pid" 2>/dev/null; then
             log "pass-cli exited during startup"
             wait "$pid" 2>/dev/null || true
+            AGENT_PID=""
             return 1
         fi
         if [ -S "$SOCKET_PATH" ]; then
@@ -156,6 +159,7 @@ start_and_supervise() {
                 log "agent ready: $keys key(s) loaded; pid=$pid"
                 wait "$pid"
                 local rc=$?
+                AGENT_PID=""
                 log "pass-cli exited (rc=$rc) after healthy start"
                 # Signal "was healthy at some point" so outer loop can
                 # reset backoff. rc is captured in the log above.
@@ -168,10 +172,21 @@ start_and_supervise() {
     log "agent loaded 0 keys after ${KEY_LOAD_TIMEOUT}s; killing pid=$pid"
     kill "$pid" 2>/dev/null || true
     wait "$pid" 2>/dev/null || true
+    AGENT_PID=""
     return 1
 }
 
-trap 'log "received signal; exiting"; exit 0' INT TERM
+handle_signal() {
+    log "received signal; stopping supervised agent"
+    if [ -n "$AGENT_PID" ] && kill -0 "$AGENT_PID" 2>/dev/null; then
+        kill "$AGENT_PID" 2>/dev/null || true
+        wait "$AGENT_PID" 2>/dev/null || true
+    fi
+    AGENT_PID=""
+    exit 0
+}
+
+trap handle_signal INT TERM
 
 rotate_log
 preflight

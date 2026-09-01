@@ -33,7 +33,7 @@ python3 -m unittest tests.test_install.TestFreshInstall -v
 - **TestGetDotfilesDir** — returns absolute path to repo root
 - **TestCreateSymlinkFailures** — missing source returns false; parent dirs created on demand; dry-run is a true no-op (returns success without creating parents or symlinks)
 - **TestRemoveSymlinkSafety** — refuses non-symlinks and symlinks pointing outside the dotfiles dir; dry-run no-op
-- **TestIsManagedSymlinkEdgeCases** — relative + absolute symlinks into the dotfiles dir are recognized; sibling-prefix directories (e.g. `dotfiles-old`) are *not* matched; non-symlinks return false
+- **TestIsManagedSymlinkEdgeCases** — relative + absolute symlinks into the dotfiles dir are recognized; sibling-prefix directories and absolute targets that escape via `..` are *not* matched; non-symlinks return false
 
 ### Installation tests (`test_install.py`)
 
@@ -45,7 +45,8 @@ python3 -m unittest tests.test_install.TestFreshInstall -v
 - **TestStatePreservation** — existing state file is loaded before save; empty state works
 - **TestFixSSHPermissions** — `~/.ssh` directory chmod 700, files chmod 600, no-op when already correct, follows symlinks to the repo, dry-run does not change perms, missing SSH dir is a no-op
 - **TestProcessItem** — fresh install of dirs/files; error on missing source; type-mismatch detection; already-installed skip; existing-directory backup; stale managed symlink is relinked instead of erroring; broken symlinks are replaced; dry-run does not create symlinks
-- **TestInstallBrewfile** — `--skip-brew` and `DOTFILES_SKIP_BREW` short-circuits; missing Brewfile and missing `brew` binary are silent no-ops; satisfied Brewfile skips install; dry-run with unsatisfied Brewfile does not install
+- **TestInstallBrewfile** — `--skip-brew` and `DOTFILES_SKIP_BREW` short-circuits; missing Brewfile and missing `brew` binary are silent no-ops; satisfied Brewfile skips install; dry-run with unsatisfied Brewfile does not install; a failed bundle install returns failure
+- **TestInstallMainFailures** — top-level install exits nonzero when Brew installation fails
 
 ### Uninstallation tests (`test_uninstall.py`)
 
@@ -55,6 +56,7 @@ python3 -m unittest tests.test_install.TestFreshInstall -v
 - **TestDryRunMode** — backup dry-run makes no filesystem changes
 - **TestRemoveSymlinkRefusesExternal** — symlinks pointing outside the dotfiles dir are not removed
 - **TestRestoreBackupMissing** — restore returns false when no backup exists; dry-run preserves that signal
+- **TestRecordedBackupRestoration** — no-backup records leave stale `.bak` files alone; exact recorded paths win over newer unrelated numbered backups
 
 ## Test Structure
 

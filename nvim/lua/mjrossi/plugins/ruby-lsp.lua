@@ -5,6 +5,7 @@ return {
     "adam12/ruby-lsp.nvim",
     dependencies = {
         "neovim/nvim-lspconfig",
+        "nvim-lua/plenary.nvim",
         "saghen/blink.cmp",
     },
     ft = { "ruby" },

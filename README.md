@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/mjrossi/dotfiles/actions/workflows/tests.yml/badge.svg)](https://github.com/mjrossi/dotfiles/actions/workflows/tests.yml)
 
-Personal configuration for Fish, Neovim, Zellij, Ghostty, mise, Git, and SSH, managed via symlinks into `~/.config/` and `~/`. Two Python scripts (`install.py`, `uninstall.py`) wire it up. Stdlib only — Python 3.10+.
+Personal configuration for Fish, Neovim, Zellij, Ghostty, mise, Git, and SSH, managed via symlinks into `~/.config/` and `~/`. Two Python scripts (`install.py`, `uninstall.py`) wire it up. Stdlib only — Python 3.9+.
 
 ## Quick start
 
@@ -35,7 +35,7 @@ Then restart your shell (`exec $SHELL`) and open `nvim` once to initialize plugi
 ./uninstall.py
 ```
 
-Removes only symlinks that point back into this repo, restores any `.bak` backups created by `install.py`, and copies preserved machine-local files (`fish/config.local.fish`, `zellij/config.kdl`) back into the restored directories.
+Removes only symlinks that point back into this repo, restores the exact `.bak` path recorded by `install.py`, and copies preserved machine-local files (`fish/config.local.fish`, `zellij/config.kdl`) back into the restored directories. Without a state record, backups are left untouched for manual recovery rather than guessed by filename.
 
 ## Package management
 
@@ -44,7 +44,7 @@ Global tooling splits between `mise` and `brew`:
 - **`mise`** — language runtimes and developer CLIs (anything installable via `cargo:`, `go:`, `pipx:`, `npm:`, or a native/aqua plugin). Config in `mise/config.toml`.
 - **`brew`** — only what can't live in mise cleanly: `mise` itself (bootstrap), `fish` (login shell), GPG/macOS integration (`gnupg`, `pinentry-mac`), third-party taps, a handful of trivial unix utilities. Tracked in `Brewfile`.
 
-`install.py` runs `brew bundle` against the committed `Brewfile` — additive only, never `cleanup`, so ad-hoc brew installs are left alone. Skip with `--skip-brew` or `DOTFILES_SKIP_BREW=1`; no-ops when `brew` isn't on PATH.
+`install.py` runs `brew bundle` against the committed `Brewfile` — additive only, never `cleanup`, so ad-hoc brew installs are left alone. Skip with `--skip-brew` or `DOTFILES_SKIP_BREW=1`; no-ops when `brew` isn't on PATH and exits nonzero when an attempted bundle install fails.
 
 ## Architecture
 

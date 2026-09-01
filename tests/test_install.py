@@ -547,6 +547,10 @@ class TestProcessItem(DotfilesTestCase):
         self.assertTrue((backup / "old.fish").exists())
         # State records backup_created=True
         self.assertTrue(self.state.installations[0]['backup_created'])
+        self.assertEqual(
+            self.state.installations[0].get('backup_path'),
+            str(backup),
+        )
 
     def test_dest_file_but_kind_dir_errors(self):
         dest = self.config_dir / "fish"
@@ -693,6 +697,50 @@ class TestInstallBrewfile(unittest.TestCase):
         called_args = mock_run.call_args.args[0]
         self.assertIn('check', called_args)
         self.assertNotIn('install', called_args)
+
+    def test_failed_bundle_install_returns_false(self):
+        (self.dotfiles_dir / "Brewfile").write_text("brew 'mise'\n")
+        check_result = subprocess.CompletedProcess(
+            args=[], returncode=1, stdout='', stderr='missing\n'
+        )
+        install_result = subprocess.CompletedProcess(
+            args=[], returncode=2, stdout='', stderr='install failed\n'
+        )
+
+        with mock.patch(
+            'install.subprocess.run', side_effect=[check_result, install_result]
+        ), mock.patch(
+            'install.shutil.which', return_value='/usr/local/bin/brew'
+        ), mock.patch.dict(os.environ, {}, clear=False), redirect_stderr(io.StringIO()):
+            os.environ.pop('DOTFILES_SKIP_BREW', None)
+            result = install.install_brewfile(
+                self.dotfiles_dir, _make_args(), self.logger
+            )
+
+        self.assertIs(result, False)
+
+
+class TestInstallMainFailures(unittest.TestCase):
+    """Top-level install status includes failures outside symlink creation."""
+
+    def test_brew_failure_exits_nonzero(self):
+        with tempfile.TemporaryDirectory() as test_dir:
+            root = Path(test_dir)
+            state_file = root / '.dotfiles-state'
+            with mock.patch.object(install, 'CONFIG_DIRS', {}), \
+                 mock.patch.object(install, 'CONFIG_FILES', {}), \
+                 mock.patch.object(install, 'get_dotfiles_dir', return_value=root), \
+                 mock.patch.object(install, 'fix_ssh_permissions'), \
+                 mock.patch.object(install, 'generate_zellij_config', return_value=None), \
+                 mock.patch.object(install, 'bootstrap_launch_agents'), \
+                 mock.patch.object(install, 'install_brewfile', return_value=False), \
+                 mock.patch.object(sys, 'argv', ['install.py', '--force']), \
+                 mock.patch.dict(os.environ, {'DOTFILES_STATE_FILE': str(state_file)}), \
+                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    install.main()
+
+        self.assertEqual(raised.exception.code, 1)
 
 
 if __name__ == '__main__':

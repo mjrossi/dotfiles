@@ -1,10 +1,12 @@
-# CLAUDE.md
+# Repository Guidelines
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for coding agents working in this repository. `AGENTS.md` is a symlink
+to this file, so Claude Code, Codex, and anything else that looks for either
+name reads one document -- edit this one.
 
 ## What This Repo Is
 
-Personal dotfiles managed via symlinks. Two Python scripts (`install.py`, `uninstall.py`) create/remove symlinks from `~/.config/` and `~/` to this repo. No external Python dependencies — stdlib only, Python 3.10+.
+Personal dotfiles managed via symlinks. Two Python scripts (`install.py`, `uninstall.py`) create/remove symlinks from `~/.config/` and `~/` to this repo. No external Python dependencies — stdlib only, Python 3.9+.
 
 ## Package Management Policy
 
@@ -43,8 +45,8 @@ python3 tests/test_install.py
 ### Python scripts
 
 - **`lib/common.py`** — all shared logic: `CONFIG_DIRS` and `CONFIG_FILES` dicts define what gets symlinked, `Logger`, `StateManager`, and helper functions (`backup_path`, `create_symlink`, `is_managed_symlink`, etc.)
-- **`install.py`** — iterates `CONFIG_DIRS`/`CONFIG_FILES`, calls `process_item()` for each, then handles two special cases: SSH permissions fix and Zellij `config.kdl` generation
-- **`uninstall.py`** — reads `.dotfiles-state`, removes managed symlinks, restores `.bak` backups, preserves machine-specific local files
+- **`install.py`** — iterates `CONFIG_DIRS`/`CONFIG_FILES`, calls `process_item()` for each, then fixes SSH permissions, generates Zellij `config.kdl`, bootstraps managed LaunchAgents, and installs missing Brewfile entries
+- **`uninstall.py`** — reads `.dotfiles-state`, removes managed symlinks, restores the exact recorded backup, and preserves machine-specific local files
 
 **To add a new dotfile**, update `CONFIG_DIRS` or `CONFIG_FILES` in `lib/common.py` and add the source directory/file to the repo.
 
@@ -70,7 +72,7 @@ python3 tests/test_install.py
 
 ### State tracking
 
-`.dotfiles-state` (JSON, gitignored) records every installed symlink with its source, destination, backup path, and timestamp. `uninstall.py` uses this to know exactly what to remove.
+`.dotfiles-state` (JSON, gitignored) records every installed symlink with its source, destination, exact backup path (or `null`), and timestamp. `uninstall.py` uses this to know exactly what to remove and restore. Version 1.0 state files only contain `backup_created`; they remain supported via legacy filename discovery. With no state, uninstall removes managed symlinks but leaves backups untouched rather than guessing ownership.
 
 ### Fish startup layout
 
@@ -82,9 +84,10 @@ Startup config lives in `fish/conf.d/`, which fish sources **before** `config.fi
 | `10-paths.fish` | always | `~/.local/bin`, prepended after Homebrew so it wins |
 | `20-env.fish` | always | `EDITOR`, `SSH_AUTH_SOCK` |
 | `30-interactive.fish` | interactive only | colours, abbreviations, `GPG_TTY` |
-| `github-token.fish` | first prompt | `GITHUB_TOKEN` from `gh` |
 
 `config.fish` itself holds only the `config.local.fish` include, which must run last so it can override everything above.
+
+GitHub credentials are intentionally on demand: `github-pat` reads the MCP token from Proton Pass only when requested, and `gh` uses its own stored authentication without exporting `GITHUB_TOKEN` on every shell's first prompt.
 
 Two rules that are easy to get wrong:
 

@@ -38,7 +38,7 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
         counters['errors'] += 1
         return
 
-    had_backup = False
+    backup = None
 
     # Check destination status
     if dest.exists() or dest.is_symlink():
@@ -71,7 +71,6 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
                 return
 
             backup = backup_path(dest, dry_run=args.dry_run, logger=logger)
-            had_backup = bool(backup)
             if backup:
                 counters['backed_up'] += 1
                 label = "directory" if kind == 'dir' else "file"
@@ -88,7 +87,13 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
         logger.success("Created symlink", indent=True)
         counters['installed'] += 1
         if not args.dry_run:
-            state.add(kind, source_name, dest, backup_created=had_backup)
+            state.add(
+                kind,
+                source_name,
+                dest,
+                backup_created=backup is not None,
+                backup_path=backup,
+            )
     else:
         counters['errors'] += 1
 
@@ -222,19 +227,20 @@ def install_brewfile(dotfiles_dir, args, logger):
     Skips silently when brew is unavailable, the opt-out flag/env is set,
     or the Brewfile is already satisfied. Never runs `cleanup`, so packages
     present on the machine but absent from the Brewfile are left alone.
+    Returns False only when an attempted bundle installation fails.
     """
     if args.skip_brew or os.environ.get('DOTFILES_SKIP_BREW'):
         logger.info("Skipping Brewfile (opt-out set)")
-        return
+        return True
 
     brewfile = dotfiles_dir / 'Brewfile'
     if not brewfile.exists():
         logger.debug("No Brewfile found, skipping")
-        return
+        return True
 
     if shutil.which('brew') is None:
         logger.info("brew not found on PATH, skipping Brewfile")
-        return
+        return True
 
     logger.header("Checking Brewfile...")
     check = subprocess.run(
@@ -243,11 +249,11 @@ def install_brewfile(dotfiles_dir, args, logger):
     )
     if check.returncode == 0:
         logger.success("Brewfile dependencies already satisfied", indent=True)
-        return
+        return True
 
     if args.dry_run:
         logger.info(f"Would run: brew bundle install --file={brewfile}", indent=True)
-        return
+        return True
 
     logger.info("Installing missing Brewfile packages...", indent=True)
     install_cmd = ['brew', 'bundle', 'install', f'--file={brewfile}']
@@ -261,8 +267,10 @@ def install_brewfile(dotfiles_dir, args, logger):
 
     if result.returncode == 0:
         logger.success("Brewfile installed", indent=True)
+        return True
     else:
         logger.error(f"brew bundle exited with status {result.returncode}", indent=True)
+        return False
 
 
 def main():
@@ -336,7 +344,8 @@ Examples:
     bootstrap_launch_agents(dotfiles_dir, args.dry_run, logger)
 
     # Install Brewfile packages (idempotent, opt-out friendly)
-    install_brewfile(dotfiles_dir, args, logger)
+    if not install_brewfile(dotfiles_dir, args, logger):
+        counters['errors'] += 1
 
     # Save state file
     if not args.dry_run:

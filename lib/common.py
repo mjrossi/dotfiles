@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
 Shared functions and configuration for dotfiles management scripts.
-Requires: Python 3.10+ (matches CI test matrix)
+Requires: Python 3.9+ (matches CI test matrix)
 """
+
+from __future__ import annotations
 
 import argparse
 from pathlib import Path
@@ -103,17 +105,36 @@ class StateManager:
             self.state_file = STATE_FILE
         self.installations: list[dict[str, Any]] = []
 
-    def add(self, item_type: str, source: str, dest: Path, backup_created: bool) -> None:
+    def add(
+        self,
+        item_type: str,
+        source: str,
+        dest: Path,
+        backup_created: bool,
+        backup_path: Path | None = None,
+    ) -> None:
         """Add (or replace) an installation record, keyed by destination."""
         record = {
             'type': item_type,
             'source': source,
             'destination': str(dest),
             'backup_created': backup_created,
+            'backup_path': str(backup_path) if backup_path is not None else None,
             'timestamp': datetime.now().isoformat(),
         }
         for i, existing in enumerate(self.installations):
             if existing['destination'] == record['destination']:
+                # A reinstall that takes no new backup -- relinking a managed
+                # symlink whose source moved, or replacing a broken one --
+                # must not erase the backup the first install recorded. That
+                # file is still the user's pre-dotfiles content, and uninstall
+                # needs its exact path to put it back.
+                if backup_path is None and not backup_created:
+                    if existing.get('backup_path'):
+                        record['backup_path'] = existing['backup_path']
+                        record['backup_created'] = True
+                    elif existing.get('backup_created') is True:
+                        record['backup_created'] = True
                 self.installations[i] = record
                 return
         self.installations.append(record)
@@ -124,7 +145,7 @@ class StateManager:
         Writes atomically: dump to a sibling temp file, then os.replace onto
         the real path so a crash mid-write cannot leave a truncated JSON file.
         """
-        state = {'version': '1.0', 'installed': self.installations}
+        state = {'version': '1.1', 'installed': self.installations}
         tmp = self.state_file.with_suffix(self.state_file.suffix + '.tmp')
         with open(tmp, 'w') as f:
             json.dump(state, f, indent=2)
@@ -186,6 +207,26 @@ def backup_path(path: Path, dry_run: bool = False, logger: Logger | None = None)
     return backup
 
 
+def discover_backup(path: Path) -> Path | None:
+    """
+    Find the backup that `restore_backup` would restore, or None.
+
+    Only for legacy 1.0 state records, which know that a backup was taken but
+    not what it was named, so the name has to be guessed back: the
+    highest-numbered `.bak.N` is the newest. Records written by this version
+    carry the exact path instead -- see `restore_backup_at`.
+    """
+    counter = 1
+    while Path(f"{path}.bak.{counter}").exists():
+        counter += 1
+
+    if counter > 1:
+        return Path(f"{path}.bak.{counter - 1}")
+    if Path(f"{path}.bak").exists():
+        return Path(f"{path}.bak")
+    return None
+
+
 def restore_backup(path: Path, dry_run: bool = False, logger: Logger | None = None) -> bool:
     """
     Rename path.bak back to path
@@ -198,20 +239,31 @@ def restore_backup(path: Path, dry_run: bool = False, logger: Logger | None = No
     Returns:
         True if backup was restored, False otherwise
     """
-    # Find the highest-numbered backup first (newest)
-    counter = 1
-    while Path(f"{path}.bak.{counter}").exists():
-        counter += 1
-
-    if counter > 1:
-        backup = Path(f"{path}.bak.{counter - 1}")
-    elif Path(f"{path}.bak").exists():
-        backup = Path(f"{path}.bak")
-    else:
+    backup = discover_backup(path)
+    if backup is None:
         return False
 
     if logger:
         logger.debug(f"Restoring backup {backup} -> {path}")
+
+    if not dry_run:
+        shutil.move(backup, path)
+
+    return True
+
+
+def restore_backup_at(
+    path: Path,
+    backup: Path,
+    dry_run: bool = False,
+    logger: Logger | None = None,
+) -> bool:
+    """Restore one exact backup path recorded during installation."""
+    if not backup.exists():
+        return False
+
+    if logger:
+        logger.debug(f"Restoring recorded backup {backup} -> {path}")
 
     if not dry_run:
         shutil.move(backup, path)
@@ -306,9 +358,12 @@ def is_managed_symlink(path: Path, dotfiles_dir: Path) -> bool:
 
     try:
         target = path.readlink()
-        # Handle both absolute and relative paths
+        # Normalize both absolute and relative targets. Absolute symlink text
+        # can still contain ``..`` segments that escape the repository.
         if not target.is_absolute():
-            target = (path.parent / target).resolve()
+            target = path.parent / target
+        target = target.resolve()
+        dotfiles_dir = dotfiles_dir.resolve()
 
         # is_relative_to avoids the prefix-match pitfall of str.startswith,
         # e.g. /home/me/dotfiles-old is NOT under /home/me/dotfiles.

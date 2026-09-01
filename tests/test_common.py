@@ -324,6 +324,15 @@ class TestIsManagedSymlinkEdgeCases(unittest.TestCase):
 
         self.assertFalse(is_managed_symlink(link, self.dotfiles_dir))
 
+    def test_absolute_target_with_parent_segments_outside_repo_is_not_managed(self):
+        # Lexically this starts with dotfiles/, but resolving ``..`` escapes the
+        # repository.  Treating it as managed would let uninstall remove a
+        # user-owned symlink.
+        link = self.root / "escaped-link"
+        link.symlink_to(self.dotfiles_dir / ".." / "outside")
+
+        self.assertFalse(is_managed_symlink(link, self.dotfiles_dir))
+
 
 if __name__ == '__main__':
     unittest.main()
