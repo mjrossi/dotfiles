@@ -1,7 +1,7 @@
 redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 
 [tools]
-"aqua:BurntSushi/ripgrep" = "latest" # snacks.picker grep / grep_word; nvim spawns processes without the shell, so a shell alias is not enough
+"aqua:BurntSushi/ripgrep" = "latest"                             # snacks.picker grep / grep_word; nvim spawns processes without the shell, so a shell alias is not enough
 "aqua:anthropics/claude-code" = "latest"
 "aqua:astral-sh/uv" = "latest"
 "aqua:casey/just" = "latest"
@@ -12,19 +12,22 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "aqua:jqlang/jq" = "latest"
 "aqua:koalaman/shellcheck" = "latest"
 "aqua:mikefarah/yq" = "latest"
+"aqua:openai/codex" = "latest"
 "aqua:neovim/neovim" = "latest"
 "aqua:sharkdp/fd" = "latest"
-"aqua:tree-sitter/tree-sitter" = "latest" # nvim-treesitter (main branch) shells out to the CLI to build parsers
+"aqua:tree-sitter/tree-sitter" = "latest"                        # nvim-treesitter (main branch) shells out to the CLI to build parsers
 "aqua:zellij-org/zellij" = "latest"
 "pipx:httpie" = "latest"
 go = { version = "1.26", postinstall = "mise install_go_tools" }
 node = "26"
 python = "3.14"
-ruby = "4" # /usr/bin/ruby is 2.6.10; ruby-lsp + rubocop need a modern one
+ruby = "4"                                                       # /usr/bin/ruby is 2.6.10; ruby-lsp + rubocop need a modern one
 
 [settings]
 experimental = true
-idiomatic_version_file_enable_tools = ["ruby"] # honour per-project .ruby-version
+idiomatic_version_file_enable_tools = [
+  "ruby",
+] # honour per-project .ruby-version
 python.uv_venv_auto = true
 
 [env]
