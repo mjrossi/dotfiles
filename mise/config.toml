@@ -8,6 +8,8 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "aqua:charmbracelet/gum" = "latest"
 "aqua:cli/cli" = "latest"
 "aqua:fullstorydev/grpcurl" = "latest"
+"aqua:github/copilot-cli" = "latest"
+"aqua:golangci/golangci-lint" = "latest"                         # global fallback only; repos pin their own version and that pin wins. Deliberately NOT go-installed and NOT a mason package — both would shadow a repo's pin (see tasks.install_go_tools)
 "aqua:jesseduffield/lazygit" = "latest"
 "aqua:jqlang/jq" = "latest"
 "aqua:koalaman/shellcheck" = "latest"
@@ -36,6 +38,21 @@ MACOSX_DEPLOYMENT_TARGET = "{{ exec(command='sw_vers -productVersion | cut -d. -
 
 [tasks.install_go_tools]
 description = "Install Go Tools Specific to a Version of Go"
+# GOBIN is this Go version's own bin dir, and mise puts that dir near the
+# FRONT of PATH — ahead of any aqua-installed tool. So anything go-installed
+# here shadows a project's mise-pinned binary of the same name, everywhere.
+#
+# Keep this list to tools that genuinely must be rebuilt per Go version
+# (dlv and gopls link against the toolchain). Everything else belongs in
+# [tools] above as an aqua package.
+#
+# In particular do NOT `go install` golangci-lint here. Upstream discourages
+# go install generally (the local Go version changes the build output), and
+# `.../golangci-lint/cmd/golangci-lint@latest` silently resolves to the v1
+# line — v2 moved to a `/v2` module path — so you get an old binary that
+# rejects v2 config files with a confusing version error. golangci-lint is
+# an aqua tool above: repos pin their own version, that pin wins, and the
+# entry above is only the outside-a-repo fallback.
 run = [
   "go install github.com/go-delve/delve/cmd/dlv@latest",
   "go install golang.org/x/tools/gopls@latest",
