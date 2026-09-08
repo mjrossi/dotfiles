@@ -1,15 +1,15 @@
-# Proton Pass SSH Agent (primary)
-# Falls back to macOS Keychain-unlocked ~/.ssh/id_ed25519 when pass-cli
-# is recovering -- same key material, served by Proton in steady state
-# and unlocked locally during the inevitable reconnect windows.
+# 1Password SSH agent.
+#
+# The agent is a local socket served by the 1Password app, so there is no
+# network dependency and no fallback path: if the app is quit, ssh fails
+# loudly rather than silently reaching for a key on disk.
 Host *
-    IdentityAgent "~/.ssh/proton-pass-agent.sock"
-    AddKeysToAgent yes
-    UseKeychain yes
-    IdentityFile ~/.ssh/id_ed25519
-    # Offer only the key above. Without this ssh also offers every default
-    # identity, including the stale ~/.ssh/id_rsa from 2017. Safe with the
-    # agent: Proton serves this same key, so its public half is listed here.
+    IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+    # Public key only -- this tells ssh which agent identity to offer without
+    # ever reading a private key from disk. It is required alongside
+    # IdentitiesOnly, which otherwise falls back to every *default* identity,
+    # including the stale ~/.ssh/id_rsa from 2017.
+    IdentityFile ~/.ssh/id_ed25519.pub
     IdentitiesOnly yes
 
 Host mjrnas.tail1737c.ts.net
