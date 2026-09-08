@@ -29,6 +29,7 @@ return {
                 "gopls",
                 "lua_ls",
                 "mdx_analyzer", -- .mdx blog posts; see the filetype rule in core/options.lua
+                                -- and the TypeScript guard in nvim-lspconfig.lua
                 "pyright",
                 "ruff",
                 "taplo",
