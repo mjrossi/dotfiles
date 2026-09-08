@@ -6,9 +6,9 @@
   # Your email for this machine (work or personal)
   email = your.email@example.com
 
-  # Your SSH signing public key
-  # To find it after the Proton Pass agent is running: `ssh-add -L`
-  # Or inside Proton Pass: open the SSH key item → copy the public key.
+  # Your SSH signing public key, from 1Password:
+  #   open the SSH key item → "Configure Commit Signing"
+  # Or, with the SSH agent running: `ssh-add -L`
   signingkey = ssh-ed25519 AAAA...your-public-key-here...
 
 # After setting email and signingkey above, generate the allowed_signers file

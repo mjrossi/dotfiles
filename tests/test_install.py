@@ -732,7 +732,6 @@ class TestInstallMainFailures(unittest.TestCase):
                  mock.patch.object(install, 'get_dotfiles_dir', return_value=root), \
                  mock.patch.object(install, 'fix_ssh_permissions'), \
                  mock.patch.object(install, 'generate_zellij_config', return_value=None), \
-                 mock.patch.object(install, 'bootstrap_launch_agents'), \
                  mock.patch.object(install, 'install_brewfile', return_value=False), \
                  mock.patch.object(sys, 'argv', ['install.py', '--force']), \
                  mock.patch.dict(os.environ, {'DOTFILES_STATE_FILE': str(state_file)}), \

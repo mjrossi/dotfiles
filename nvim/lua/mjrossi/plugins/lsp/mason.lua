@@ -29,6 +29,7 @@ return {
                 "gopls",
                 "lua_ls",
                 "mdx_analyzer", -- .mdx blog posts; see the filetype rule in core/options.lua
+                                -- and the TypeScript guard in nvim-lspconfig.lua
                 "pyright",
                 "ruff",
                 "taplo",
@@ -56,7 +57,12 @@ return {
 
         mason_tool_installer.setup({
             ensure_installed = {
-                "golangci-lint",   -- go linter
+                -- NOT golangci-lint: mason prepends its bin dir to PATH, so a
+                -- mason copy shadows the version a repo pins via mise/aqua and
+                -- the editor then lints with different rules than `just lint`
+                -- and CI. mise owns this binary instead — per-project pin
+                -- inside a repo, global fallback outside — so nvim-lint
+                -- resolving `golangcilint` from PATH is correct everywhere.
                 "goimports",       -- go import organizer (used by conform)
                 "prettier",        -- yaml formatter
                 "rubocop",         -- ruby linter + formatter

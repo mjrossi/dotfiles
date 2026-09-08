@@ -50,6 +50,56 @@ return {
             },
         }
 
+        -- Volar-based servers -- Vue, Svelte, Astro, mdx_analyzer -- embed
+        -- TypeScript's JavaScript Language Service API, and TypeScript 7 (the
+        -- Go port) no longer exposes it. Upstream's guidance is that projects
+        -- using these tools stay on TypeScript 6 until TS ships a replacement
+        -- API; Astro itself still devDepends on typescript 6.
+        --
+        -- lspconfig points mdx_analyzer at the first node_modules/typescript/lib
+        -- found walking up from the project root, sight unseen. Under TypeScript
+        -- 7 that directory holds native binaries and a tsc.js shim -- no
+        -- typescript.js and no tsserverlibrary.js -- so Volar's loadTsdkByPath
+        -- throws during initialize and every .mdx buffer opens on an RPC stack
+        -- trace. Check the lib first and say what is actually wrong instead.
+        local function usable_tsdk(root_dir)
+            local lib = require("lspconfig.util").get_typescript_server_path(root_dir)
+            if not lib or lib == "" then
+                return false
+            end
+            -- Volar takes either entrypoint. TS 6 ships both, TS 7 ships neither.
+            for _, entrypoint in ipairs({ "typescript.js", "tsserverlibrary.js" }) do
+                if vim.uv.fs_stat(lib .. "/" .. entrypoint) then
+                    return true
+                end
+            end
+            return false
+        end
+
+        local warned_roots = {}
+
+        vim.lsp.config.mdx_analyzer = {
+            -- root_markers is ignored once root_dir is a function (:h
+            -- lsp-root_dir()), so package.json moves here. Returning without
+            -- calling on_dir is the documented way to leave a server unstarted.
+            root_dir = function(bufnr, on_dir)
+                local root = vim.fs.root(bufnr, "package.json")
+                if not root then
+                    return
+                end
+                if usable_tsdk(root) then
+                    on_dir(root)
+                elseif not warned_roots[root] then
+                    warned_roots[root] = true
+                    vim.notify(
+                        "mdx_analyzer not started: no TypeScript with a JavaScript API in "
+                            .. root .. " -- Volar needs typescript 6 or older",
+                        vim.log.levels.WARN
+                    )
+                end
+            end,
+        }
+
         vim.lsp.config.yamlls = {
             settings = {
                 yaml = {
@@ -77,6 +127,7 @@ return {
         -- Enable the configured servers
         vim.lsp.enable("gopls")
         vim.lsp.enable("lua_ls")
+        vim.lsp.enable("mdx_analyzer")
         vim.lsp.enable("pyright")
         vim.lsp.enable("ruff")
         vim.lsp.enable("yamlls")
