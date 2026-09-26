@@ -20,7 +20,7 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "aqua:tree-sitter/tree-sitter" = "latest"                        # nvim-treesitter (main branch) shells out to the CLI to build parsers
 "aqua:zellij-org/zellij" = "latest"
 "pipx:httpie" = "latest"
-go = { version = "1.26", postinstall = "mise install_go_tools" }
+go = { version = "1.27", postinstall = "mise install_go_tools" }
 node = "26"
 python = "3.14"
 ruby = "4"                                                       # /usr/bin/ruby is 2.6.10; ruby-lsp + rubocop need a modern one
