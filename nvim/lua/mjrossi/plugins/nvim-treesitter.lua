@@ -8,6 +8,7 @@ return {
             "c", "lua", "vim", "vimdoc", "query", "markdown", "markdown_inline",
             "elixir", "heex", "javascript", "html", "go",
             "gomod", "gosum", "ruby", "python", "just",
+            "r", "rnoweb", "yaml", -- R.nvim needs all three (.R, .Rnw, .Rmd front matter)
         })
 
         vim.api.nvim_create_autocmd("FileType", {

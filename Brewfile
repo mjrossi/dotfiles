@@ -8,6 +8,13 @@ brew "fish"
 # the system-integration exception in the package policy.
 cask "1password-cli"
 
+# R from CRAN's official .pkg. Cask rather than mise: mise has no binary R
+# backend (the asdf plugin compiles from source), and CRAN's prebuilt macOS
+# packages -- sf with its bundled GDAL/PROJ/GEOS above all -- are built against
+# CRAN's R.framework. The `r` formula would force every one of those to build
+# from source against Homebrew's GDAL. Symlinks R/Rscript into /usr/local/bin.
+cask "r-app"
+
 brew "gnupg"
 brew "pinentry-mac"
 

@@ -17,6 +17,8 @@ return {
             go = { "goimports" },          -- goimports includes gofmt; no need for both
             yaml = { "prettier" },
             toml = { "taplo" },
+            r = { "air" },                 -- mise-managed (global fallback, project pin wins), not mason
+            rmd = { "air" },
         },
         format_on_save = {
             timeout_ms = 500,
