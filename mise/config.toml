@@ -19,6 +19,8 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "aqua:sharkdp/fd" = "latest"
 "aqua:tree-sitter/tree-sitter" = "latest"                        # nvim-treesitter (main branch) shells out to the CLI to build parsers
 "aqua:zellij-org/zellij" = "latest"
+"github:jgm/pandoc" = "latest"                                   # rmarkdown::render shells out to it; RStudio/Positron bundle their own, VS Code and nvim do not
+"github:posit-dev/air" = "latest"                                # R formatter (conform + VS Code). Full backend name: the bare registry `air` is air-verse's Go live-reloader. Global fallback only; R projects pin their own
 "pipx:httpie" = "latest"
 go = { version = "1.27", postinstall = "mise install_go_tools" }
 node = "26"

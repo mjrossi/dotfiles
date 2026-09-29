@@ -42,7 +42,7 @@ Removes only symlinks that point back into this repo, restores the exact `.bak` 
 Global tooling splits between `mise` and `brew`:
 
 - **`mise`** — language runtimes and developer CLIs (anything installable via `cargo:`, `go:`, `pipx:`, `npm:`, or a native/aqua plugin). Config in `mise/config.toml`.
-- **`brew`** — only what can't live in mise cleanly: `mise` itself (bootstrap), `fish` (login shell), GPG/macOS integration (`gnupg`, `pinentry-mac`), third-party taps, a handful of trivial unix utilities. Tracked in `Brewfile`.
+- **`brew`** — only what can't live in mise cleanly: `mise` itself (bootstrap), `fish` (login shell), GPG/macOS integration (`gnupg`, `pinentry-mac`), third-party taps, R (the `r-app` cask, so CRAN's prebuilt packages work), a handful of trivial unix utilities. Tracked in `Brewfile`.
 
 `install.py` runs `brew bundle` against the committed `Brewfile` — additive only, never `cleanup`, so ad-hoc brew installs are left alone. Skip with `--skip-brew` or `DOTFILES_SKIP_BREW=1`; no-ops when `brew` isn't on PATH and exits nonzero when an attempted bundle install fails.
 

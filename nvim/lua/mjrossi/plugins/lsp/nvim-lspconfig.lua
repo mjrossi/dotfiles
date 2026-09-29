@@ -124,11 +124,20 @@ return {
             },
         }
 
+        -- r_language_server is deliberately NOT a mason package. Its cmd is
+        -- `R -e languageserver::run()`, and in an renv project R's startup
+        -- replaces .libPaths() with the project library, so a copy installed
+        -- anywhere else is invisible to it. The `languageserver` package lives
+        -- in each project's renv library instead (listed in DESCRIPTION), which
+        -- also means the server sees exactly the packages the code does. R
+        -- itself comes from the r-app cask in the Brewfile.
+
         -- Enable the configured servers
         vim.lsp.enable("gopls")
         vim.lsp.enable("lua_ls")
         vim.lsp.enable("mdx_analyzer")
         vim.lsp.enable("pyright")
+        vim.lsp.enable("r_language_server")
         vim.lsp.enable("ruff")
         vim.lsp.enable("yamlls")
     end,
