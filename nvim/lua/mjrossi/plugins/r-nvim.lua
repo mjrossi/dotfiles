@@ -7,8 +7,8 @@ return {
     config = function()
         require("r").setup({
             R_args = { "--quiet", "--no-save" },
-            -- R.nvim's ~80 defaults all live under <localleader>, which is
-            -- also <leader> here, so they would shadow <leader>rn (rename),
+            -- Almost all of R.nvim's ~80 defaults live under <localleader>, which
+            -- is also <leader> here, so they would shadow <leader>rn (rename),
             -- <leader>rs (LSP restart), <leader>aa (Claude accept diff) and
             -- friends in R buffers. Opt out of all of them and bind the
             -- handful that matter below.

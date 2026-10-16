@@ -6,7 +6,7 @@ Personal Neovim config using [lazy.nvim](https://github.com/folke/lazy.nvim) for
 
 0.12 rather than 0.11 because `<leader>rs` uses the built-in `:lsp restart`; on 0.11 that command does not exist (it was `:LspRestart`, from nvim-lspconfig).
 
-No native toolchain needed: the pickers shell out to `fd` and `ripgrep` (both from mise) and blink.cmp ships prebuilt binaries.
+No native toolchain needed, except for R: the pickers shell out to `fd` and `ripgrep` (both from mise) and blink.cmp ships prebuilt binaries. R.nvim is the one exception — on the first R buffer it runs `make` to build `rnvimserver` and builds its `nvimcom` R package from source, so R files need the Xcode Command Line Tools and R (the `r-app` cask).
 
 ---
 
@@ -38,6 +38,7 @@ nvim/
         ├── claudecode.lua          # Claude Code AI integration
         ├── mise.lua                # Refreshes mise environment after :cd
         ├── ruby-lsp.lua            # mise-aware Ruby LSP lifecycle
+        ├── r-nvim.lua              # R REPL, language server, and R keymaps
         └── lsp/
             ├── nvim-lspconfig.lua  # LSP config — capabilities and per-server settings
             ├── mason.lua           # Language server + tool installer
@@ -63,6 +64,7 @@ nvim/
 | which-key.nvim | Keymap hint popup on `<leader>` | VeryLazy |
 | mise.nvim | Re-applies mise env on `:cd` so LSP/tools stay correct per project | DirChanged / `:Mise` |
 | ruby-lsp.nvim | Manages ruby-lsp gem per active Ruby version (mise-aware) | ft=ruby |
+| R.nvim | R console, send-to-R, built-in R language server (`r_ls`) | startup (only acts in R/Rmd/Quarto buffers) |
 | claudecode.nvim | Claude Code terminal integration | keys |
 | snacks.nvim | Picker (replaces telescope) + UI primitives for claudecode | startup |
 | nvim-lspconfig | LSP server configurations | startup (see the note in the spec) |
@@ -84,6 +86,7 @@ nvim/
 | Lua | lua_ls | stylua | — |
 | YAML | yamlls | prettier | — |
 | TOML | taplo | taplo | — |
+| R / Rmd / Quarto | r_ls (R.nvim built-in) | air (`.R` only) | — |
 | Rust (optional) | rust_analyzer | (LSP fallback) | — |
 | Elixir (optional) | elixirls | (LSP fallback) | — |
 
@@ -91,6 +94,7 @@ nvim/
 - Go: `goimports` handles both import organization and `gofmt` formatting
 - Python: pyright does type checking, ruff does import sorting, formatting and linting. ruff's diagnostics come from its language server, so nvim-lint has no python entry; ruff's hover is disabled on attach so `K` returns pyright's type info. pyright uses the mise Python shim so it resolves to the correct version per `.mise.toml`
 - Ruby: managed by `ruby-lsp.nvim` (not Mason) so the LSP gem matches the active mise Ruby version; rubocop diagnostics come from both ruby_lsp and nvim-lint
+- R: the language server comes from R.nvim, not Mason or lspconfig, and starts once R.nvim's server is up. `r_language_server` is deliberately not enabled alongside it. That means R has no diagnostics: `r_ls` publishes none and nvim-lint has no R entry. air is installed by mise (`github:posit-dev/air`) and only formats `.R` files
 - Rust and Elixir: listed as optional recipes; their servers are not installed by this config. Install them through Mason and add the matching Treesitter parser when needed
 - nvim-lint runs once when a Go/Ruby buffer loads and again after saves; it does not spawn linters on every `InsertLeave`
 - golangci-lint: uses defaults if no `.golangci.yml` present in project root
@@ -168,6 +172,22 @@ Leader key: `\`
 | Key | Action |
 |-----|--------|
 | `\cf` | Format buffer (async) |
+
+### R (R/Rmd/Quarto buffers only)
+
+R.nvim's own default maps are turned off (`user_maps_only`) because they sit under `<localleader>`, which is also `\`, and would shadow `\rn`, `\rs` and `\aa`.
+
+| Key | Action |
+|-----|--------|
+| `<CR>` | Send line to R and move down |
+| `<CR>` (visual) | Send selection to R |
+| `\xs` | Start R |
+| `\xq` | Quit R |
+| `\xc` | Send chunk (Rmd/Quarto) |
+| `\xa` | Send file (`.R`) |
+| `\xh` | Help for word under cursor |
+| `\xv` | View data.frame under cursor |
+| `<M-->` (insert) | Insert ` <- ` |
 
 ### AI / Claude
 
