@@ -124,8 +124,12 @@ return {
             },
         }
 
+        -- just-lsp is not a mason package: VS Code needs it on PATH too,
+        -- so it is installed once by mise (mise/config.toml) and shared.
+
         -- Enable the configured servers
         vim.lsp.enable("gopls")
+        vim.lsp.enable("just")
         vim.lsp.enable("lua_ls")
         vim.lsp.enable("mdx_analyzer")
         vim.lsp.enable("pyright")

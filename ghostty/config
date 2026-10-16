@@ -37,3 +37,5 @@ macos-option-as-alt = true
 
 # Keybindings
 keybind = shift+enter=text:\n
+
+quit-after-last-window-closed=true
