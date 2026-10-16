@@ -27,9 +27,6 @@
 
   pile = stash --include-untracked
 
-  # git-duet aliases (must have https://github.com/git-duet/git-duet installed)
-  dci = duet-commit
-
   branches = branch -a
   unstage = reset -q HEAD --
   remotes = remote -v
@@ -39,8 +36,8 @@
 
   precommit = diff --cached --diff-algorithm=minimal -w
 
-[alias "push"]
-  please = push --force-with-lease
+[alias "push.please"]
+  command = push --force-with-lease
 [push]
   default = current
 [rebase]
