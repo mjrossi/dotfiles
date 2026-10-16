@@ -124,13 +124,9 @@ return {
             },
         }
 
-        -- r_language_server is deliberately NOT a mason package. Its cmd is
-        -- `R -e languageserver::run()`, and in an renv project R's startup
-        -- replaces .libPaths() with the project library, so a copy installed
-        -- anywhere else is invisible to it. The `languageserver` package lives
-        -- in each project's renv library instead (listed in DESCRIPTION), which
-        -- also means the server sees exactly the packages the code does. R
-        -- itself comes from the r-app cask in the Brewfile.
+        -- R has no entry here: R.nvim starts its own language server (r_ls)
+        -- in R buffers. See plugins/r-nvim.lua for why r_language_server is
+        -- not enabled alongside it.
 
         -- just-lsp is also not a mason package: VS Code needs it on PATH too,
         -- so it is installed once by mise (mise/config.toml) and shared.
@@ -141,7 +137,6 @@ return {
         vim.lsp.enable("lua_ls")
         vim.lsp.enable("mdx_analyzer")
         vim.lsp.enable("pyright")
-        vim.lsp.enable("r_language_server")
         vim.lsp.enable("ruff")
         vim.lsp.enable("yamlls")
     end,

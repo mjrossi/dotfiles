@@ -17,8 +17,9 @@ return {
             go = { "goimports" },          -- goimports includes gofmt; no need for both
             yaml = { "prettier" },
             toml = { "taplo" },
-            r = { "air" },                 -- mise-managed (global fallback, project pin wins), not mason
-            rmd = { "air" },
+            -- air is mise-managed (global fallback, project pin wins), not mason.
+            -- No rmd/quarto entry: air only formats .R files.
+            r = { "air" },
         },
         format_on_save = {
             timeout_ms = 500,
