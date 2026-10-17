@@ -124,7 +124,11 @@ return {
             },
         }
 
-        -- just-lsp is not a mason package: VS Code needs it on PATH too,
+        -- R has no entry here: R.nvim starts its own language server (r_ls)
+        -- in R buffers. See plugins/r-nvim.lua for why r_language_server is
+        -- not enabled alongside it.
+
+        -- just-lsp is also not a mason package: VS Code needs it on PATH too,
         -- so it is installed once by mise (mise/config.toml) and shared.
 
         -- Enable the configured servers

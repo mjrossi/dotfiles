@@ -13,7 +13,7 @@ Personal dotfiles managed via symlinks. Two Python scripts (`install.py`, `unins
 Split between `mise` and `brew`:
 
 - **`mise`** — language runtimes and developer CLIs. Anything available via a mise backend (`cargo:`, `go:`, `pipx:`, `npm:`, native plugins) belongs here. Config: `mise/config.toml`.
-- **`brew`** — only: `mise` (bootstrap), `fish` (login shell), GPG/macOS integration (`gnupg`, `pinentry-mac`), third-party taps, trivial unix utilities (`age`, `wget`, `p7zip`, `rename`, `telnet`, `wimlib`). Tracked in `Brewfile`.
+- **`brew`** — only: `mise` (bootstrap), `fish` (login shell), GPG/macOS integration (`gnupg`, `pinentry-mac`), third-party taps, R (`r-app` cask -- CRAN's binary packages need CRAN's R.framework, and mise has no binary R backend), trivial unix utilities (`age`, `wget`, `p7zip`, `rename`, `telnet`, `wimlib`). Tracked in `Brewfile`.
 
 When adding a tool: try `mise` first. Within mise, prefer prebuilt-binary backends (`aqua:`, native plugins) over source-build backends (`cargo:`, `go:`) unless source-building is the only option or a Go postinstall is needed — this keeps the global `rust` toolchain unnecessary and makes fresh-machine installs fast. Only use `brew` if it requires system integration or isn't available via any mise backend.
 

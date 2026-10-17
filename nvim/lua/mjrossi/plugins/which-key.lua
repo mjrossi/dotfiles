@@ -11,6 +11,7 @@ return {
             { "<leader>h", group = "Hunk (Git)" },
             { "<leader>n", group = "Nav / NvimTree" },
             { "<leader>r", group = "Refactor / LSP" },
+            { "<leader>x", group = "R (eXecute)" }, -- buffer-local, R files only (plugins/r-nvim.lua)
         },
     },
 }
