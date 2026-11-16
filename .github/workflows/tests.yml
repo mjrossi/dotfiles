@@ -17,6 +17,11 @@ jobs:
         # macOS's system python3), 3.14 the newest. The scripts are stdlib
         # only, so the versions in between mostly re-run the same code.
         python-version: ['3.9', '3.14']
+        # setup-python has no 3.9 build for the current Ubuntu image. The 3.9
+        # floor exists for macOS's system python3, so that is where it runs.
+        exclude:
+          - os: ubuntu-latest
+            python-version: '3.9'
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -49,6 +54,11 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    # mise treats mise/config.toml in the checkout as a project config and
+    # would install every global tool from it (sigtop does not build on
+    # Linux). This job wants only the two tools named below.
+    env:
+      MISE_IGNORED_CONFIG_PATHS: ${{ github.workspace }}/mise
     steps:
       - uses: actions/checkout@v7
       # Only needs to parse the files (fish --no-execute), so the distro's
