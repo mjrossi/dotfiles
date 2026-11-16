@@ -20,7 +20,8 @@ return {
         provider = "copilot-acp",
     },
     -- Nested under <leader>a rather than a <leader>c/<leader>g of its own:
-    -- <leader>a is already the AI group and <leader>g belongs to gitsigns.
+    -- <leader>a is already the AI group and <leader>g belongs to git
+    -- (gitsigns, plus lazygit on <leader>gg).
     keys = {
         {
             "<leader>agg",

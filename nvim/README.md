@@ -24,18 +24,19 @@ nvim/
     ├── lsp/
     │   └── attach.lua              # LspAttach autocmd — buffer-local LSP keymaps
     └── plugins/
-        ├── tokyonight.lua          # Color scheme
-        ├── snacks.lua               # Picker (files, grep, buffers, help)
+        ├── tokyonight.lua          # Color scheme (Night variant)
+        ├── snacks.lua              # Picker (files, grep, buffers, help) + lazygit float
         ├── nvim-tree.lua           # File explorer
         ├── nvim-treesitter.lua     # Syntax highlighting/parsing
         ├── gitsigns.lua            # Git hunk indicators
         ├── nvim-surround.lua       # Surrounding text objects (ys, cs, ds)
         ├── nvim-autopairs.lua      # Auto-close brackets and quotes
         ├── fidget.lua              # LSP progress indicator (bottom-right)
-        ├── nvim-lint.lua           # Async linting (rubocop, golangci-lint)
+        ├── nvim-lint.lua           # Async linting (golangci-lint)
         ├── conform.lua             # Formatter chains + format-on-save
         ├── which-key.lua           # Keymap hint popup
         ├── claudecode.lua          # Claude Code AI integration
+        ├── agentic.lua             # Copilot CLI chat over ACP
         ├── mise.lua                # Refreshes mise environment after :cd
         ├── ruby-lsp.lua            # mise-aware Ruby LSP lifecycle
         ├── r-nvim.lua              # R REPL, language server, and R keymaps
@@ -52,21 +53,22 @@ nvim/
 
 | Plugin | Purpose | Loads On |
 |--------|---------|----------|
-| tokyonight.nvim | Color scheme | startup |
+| tokyonight.nvim | Color scheme (`style = "night"`) | startup |
 | nvim-tree.lua | File explorer | `:NvimTree*` or `\nt`/`\nf` |
 | nvim-treesitter | Syntax trees, highlight, indent | startup |
 | gitsigns.nvim | Git hunk signs in gutter | BufReadPre/BufNewFile |
 | nvim-surround | Add/change/delete surroundings | VeryLazy |
 | nvim-autopairs | Auto-close `()`, `{}`, `""`, etc. | InsertEnter |
 | fidget.nvim | LSP loading progress indicator | LspAttach |
-| nvim-lint | Async linting via external tools | ft=go/ruby |
+| nvim-lint | Async linting via external tools | ft=go |
 | conform.nvim | Formatter chains + format-on-save | BufWritePre |
 | which-key.nvim | Keymap hint popup on `<leader>` | VeryLazy |
 | mise.nvim | Re-applies mise env on `:cd` so LSP/tools stay correct per project | DirChanged / `:Mise` |
 | ruby-lsp.nvim | Manages ruby-lsp gem per active Ruby version (mise-aware) | ft=ruby |
 | R.nvim | R console, send-to-R, built-in R language server (`r_ls`) | startup (only acts in R/Rmd/Quarto buffers) |
 | claudecode.nvim | Claude Code terminal integration | keys |
-| snacks.nvim | Picker (replaces telescope) + UI primitives for claudecode | startup |
+| agentic.nvim | Copilot CLI chat in the editor, over ACP (`copilot --acp`) | keys |
+| snacks.nvim | Picker (replaces telescope), lazygit float, UI primitives for claudecode | startup |
 | nvim-lspconfig | LSP server configurations | startup (see the note in the spec) |
 | mason.nvim | Install/manage LSP servers and tools | startup |
 | mason-lspconfig | Bridge mason ↔ lspconfig | with mason |
@@ -82,7 +84,7 @@ nvim/
 |----------|-----------|-----------|--------|
 | Go | gopls | goimports | golangci-lint |
 | Python | pyright + ruff | ruff | ruff (via LSP) |
-| Ruby | ruby_lsp | rubocop | rubocop |
+| Ruby | ruby_lsp | rubocop (via ruby_lsp) | rubocop (via ruby_lsp) |
 | Lua | lua_ls | stylua | — |
 | YAML | yamlls | prettier | — |
 | TOML | taplo | taplo | — |
@@ -91,14 +93,15 @@ nvim/
 | Elixir (optional) | elixirls | (LSP fallback) | — |
 
 **Notes:**
-- Go: `goimports` handles both import organization and `gofmt` formatting
+- Go: `gopls` and `dlv` come from mise's `install_go_tools` postinstall, rebuilt per Go version, not from Mason. `goimports` handles both import organization and `gofmt` formatting
 - Python: pyright does type checking, ruff does import sorting, formatting and linting. ruff's diagnostics come from its language server, so nvim-lint has no python entry; ruff's hover is disabled on attach so `K` returns pyright's type info. pyright uses the mise Python shim so it resolves to the correct version per `.mise.toml`
-- Ruby: managed by `ruby-lsp.nvim` (not Mason) so the LSP gem matches the active mise Ruby version; rubocop diagnostics come from both ruby_lsp and nvim-lint
+- Ruby: managed by `ruby-lsp.nvim` (not Mason) so the LSP gem matches the active mise Ruby version. ruby-lsp is the single owner of Ruby diagnostics and formatting: it runs the project's bundled rubocop itself, so nvim-lint and conform have no ruby entry (conform reaches it through its LSP fallback) and Mason installs no rubocop
 - R: the language server comes from R.nvim, not Mason or lspconfig, and starts once R.nvim's server is up. `r_language_server` is deliberately not enabled alongside it. That means R has no diagnostics: `r_ls` publishes none and nvim-lint has no R entry. air is installed by mise (`github:posit-dev/air`) and only formats `.R` files
 - Rust and Elixir: listed as optional recipes; their servers are not installed by this config. Install them through Mason and add the matching Treesitter parser when needed
-- nvim-lint runs once when a Go/Ruby buffer loads and again after saves; it does not spawn linters on every `InsertLeave`
+- nvim-lint runs once when a Go buffer loads and again after saves; it does not spawn linters on every `InsertLeave`
 - golangci-lint: uses defaults if no `.golangci.yml` present in project root
 - mise shims are prepended to `PATH` at startup — tools resolve to the correct project version even when Neovim is launched from a GUI
+- Mason appends its bin dir to `PATH` (`PATH = "append"`), so a mise or project-pinned binary always wins and Mason's copy is only the fallback
 
 ---
 
@@ -113,16 +116,16 @@ Leader key: `\`
 | `<left>` | Previous tab |
 | `<right>` | Next tab |
 | `\nh` | Clear search highlight |
-| `Y` | Yank to end of line |
-| `x` + `p` (visual) | Paste without yanking |
-| `x` + `*` (visual) | Search current selection |
+| `p` (visual) | Paste without yanking |
+
+Nvim's own defaults are not remapped and still apply: `Y` (yank to end of line), visual `*` (search for the selection), `[d` / `]d` (diagnostics), and the LSP maps `K`, `grn`, `gra`, `grr`, `gri`, `grt`, `gO`.
 
 ### LSP
 
 | Key | Action |
 |-----|--------|
 | `gd` | Go to definition |
-| `gr` | Find references |
+| `gr` | Find references (`nowait`, so it does not wait out the built-in `gr*` maps) |
 | `gD` | Go to declaration |
 | `gi` | Go to implementation |
 | `gt` | Go to type definition |
@@ -130,9 +133,7 @@ Leader key: `\`
 | `\ca` | Code action (normal + visual) |
 | `\rs` | Restart LSP (`:lsp restart`) |
 | `gl` | Open diagnostics float |
-| `[d` | Previous diagnostic |
-| `]d` | Next diagnostic |
-| `\q` | Diagnostics quickfix list |
+| `\q` | Diagnostics location list |
 
 ### Find (Snacks picker)
 
@@ -159,6 +160,7 @@ Leader key: `\`
 | `\gb` | Blame line |
 | `\gd` | Diff this |
 | `\gD` | Diff this ~ |
+| `\gg` | Open lazygit (Snacks float) |
 
 ### Nav / NvimTree
 
@@ -202,6 +204,10 @@ R.nvim's own default maps are turned off (`user_maps_only`) because they sit und
 | `\as` (NvimTree) | Add file to Claude |
 | `\aa` | Accept diff |
 | `\ad` | Deny diff |
+| `\agg` | Toggle Copilot chat (agentic.nvim; normal + visual) |
+| `\aga` | Add selection or file to Copilot context |
+| `\agn` | New Copilot session |
+| `\agr` | Restore Copilot session |
 
 ### Completion (blink.cmp)
 
@@ -220,11 +226,11 @@ R.nvim's own default maps are turned off (`user_maps_only`) because they sit und
 
 ## Adding a New Language
 
-1. **LSP server** — add to `mason_lspconfig.ensure_installed` in `lsp/mason.lua`
+1. **LSP server** — if mise or the project already provides it, nothing to install (Mason's PATH entry comes last, so that copy wins); otherwise add it to `mason_lspconfig.ensure_installed` in `lsp/mason.lua`
 2. **Custom server config** (optional) — add `vim.lsp.config.<name> = { ... }` and `vim.lsp.enable("<name>")` in `lsp/nvim-lspconfig.lua`; otherwise mason's `automatic_enable` handles it with defaults + shared capabilities. Set only what differs from nvim-lspconfig's own `lsp/<name>.lua` — `cmd`, `filetypes` and `root_markers` are merged in already (`:h lsp-config`). Keymaps come from the `LspAttach` autocmd in `lsp/attach.lua`, not from an `on_attach` field
 3. **Formatter** — add to `formatters_by_ft` in `plugins/conform.lua`; add the tool to `mason_tool_installer.ensure_installed` in `lsp/mason.lua`
 4. **Linter** — add to `lint.linters_by_ft` in `plugins/nvim-lint.lua`; add the tool to `mason_tool_installer.ensure_installed` in `lsp/mason.lua`
-5. **Treesitter parser** — add the language name to the `ensure_installed` list in `plugins/nvim-treesitter.lua`
+5. **Treesitter parser** — add the language name to the `require("nvim-treesitter").install({ ... })` list in `plugins/nvim-treesitter.lua`
 
 ---
 
