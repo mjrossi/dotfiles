@@ -68,6 +68,7 @@ just --list
 | `zellij/` | `~/.config/zellij/` |
 | `mise/` | `~/.config/mise/` |
 | `ghostty/` | `~/.config/ghostty/` |
+| `claude/skills/<name>/` | `~/.claude/skills/<name>/` (one link per skill) |
 | `gitconfig` | `~/.gitconfig` |
 | `gitignore_global` | `~/.gitignore_global` |
 | `ssh/config` | `~/.ssh/config` |
@@ -78,6 +79,10 @@ just --list
 - `~/.config/fish/config.local.fish` — sourced by `config.fish` if it exists
 - `~/.config/zellij/config.local.kdl` — appended to generated `config.kdl` by `install.py`
 - `zellij/config.kdl` — regenerated on every `install.py` run from `config.shared.kdl` + local override
+
+### Claude Code skills
+
+`claude/skills/` holds vendored personal skills. Each is linked individually through the `CLAUDE_SKILLS` tuple in `lib/common.py`, which feeds `CONFIG_DIRS`; `~/.claude/skills` itself stays a real directory because Claude writes account-synced skills into `synced/` there and `code-review-skill` lives in it as its own git clone (`just claude-review-skill`). To add or drop a skill, change the directory and the tuple together. Origin, licence and the one install caveat are in `claude/skills/README.md`.
 
 ### State tracking
 

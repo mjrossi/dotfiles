@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/mjrossi/dotfiles/actions/workflows/tests.yml/badge.svg)](https://github.com/mjrossi/dotfiles/actions/workflows/tests.yml)
 
-Personal configuration for Fish, Neovim, Zellij, Ghostty, mise, Git, and SSH, managed via symlinks into `~/.config/` and `~/`. Two Python scripts (`install.py`, `uninstall.py`) wire it up. Stdlib only — Python 3.9+.
+Personal configuration for Fish, Neovim, Zellij, Ghostty, mise, Git, SSH, and a set of Claude Code skills, managed via symlinks into `~/.config/` and `~/`. Two Python scripts (`install.py`, `uninstall.py`) wire it up. Stdlib only — Python 3.9+.
 
 ## Quick start
 
@@ -75,6 +75,10 @@ fish startup is split across `fish/conf.d/` by dependency order; see [CLAUDE.md]
 ## Editor
 
 Neovim, configured in `nvim/`. Who provides the language server, formatter and linter for each language -- mise, a project pin, ruby-lsp, or Mason as the fallback -- is in [nvim/README.md](./nvim/README.md#language-support), along with the keybindings.
+
+## Claude Code skills
+
+`claude/skills/` holds sixteen vendored review and refactoring skills, each linked to `~/.claude/skills/<name>` by `install.py`. Where they came from and how to add one is in [claude/skills/README.md](./claude/skills/README.md). `just claude-review-skill` clones or fast-forwards the one skill that tracks its upstream instead.
 
 ## Credentials
 

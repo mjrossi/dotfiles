@@ -40,3 +40,18 @@ dry-run:
 completions:
     copilot completion fish > fish/completions/copilot.fish
     docker completion fish > fish/completions/docker.fish
+
+# code-review-skill is the one personal Claude skill that tracks its upstream
+# (the rest are vendored in claude/skills/). Skill text is instructions Claude
+# follows, so read what a fast-forward brought in: `git -C <dir> log -p ORIG_HEAD..`
+#
+# Clone the upstream code-review skill into ~/.claude/skills, or fast-forward it
+claude-review-skill:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    dir="$HOME/.claude/skills/code-review-skill"
+    if [ -d "$dir/.git" ]; then
+        git -C "$dir" pull --ff-only
+    else
+        git clone https://github.com/awesome-skills/code-review-skill.git "$dir"
+    fi

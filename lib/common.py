@@ -25,6 +25,33 @@ CONFIG_DIRS: dict[str, Path] = {
     'ghostty': Path.home() / '.config' / 'ghostty',
 }
 
+# Claude Code skills vendored under claude/skills/. Each one is linked on its
+# own rather than linking ~/.claude/skills as a whole: that directory also
+# holds skills this repo does not own (account-synced ones under synced/,
+# standalone git clones), so it has to stay a real directory.
+CLAUDE_SKILLS: tuple[str, ...] = (
+    'ai-generated-code-review',
+    'anti-patterns-catalog',
+    'concurrency-patterns',
+    'detect-code-smells',
+    'error-handling-patterns',
+    'go-review-patterns',
+    'performance-anti-patterns',
+    'refactor',
+    'refactor-composing-methods',
+    'refactor-moving-features',
+    'refactor-organizing-data',
+    'refactor-simplifying-method-calls',
+    'refactoring-decision-matrix',
+    'review-accuracy-calibration',
+    'security-patterns-code-review',
+    'typescript-review-patterns',
+)
+CONFIG_DIRS.update({
+    f'claude/skills/{name}': Path.home() / '.claude' / 'skills' / name
+    for name in CLAUDE_SKILLS
+})
+
 # Configuration: File mappings
 CONFIG_FILES: dict[str, Path] = {
     'gitconfig': Path.home() / '.gitconfig',
