@@ -84,7 +84,7 @@ Neovim, configured in `nvim/`. Who provides the language server, formatter and l
 
 - **SSH** goes through the 1Password SSH agent (`ssh/config`, `IdentityAgent` plus `SSH_AUTH_SOCK` in `fish/conf.d/20-env.fish`). No private key is read from disk. Enabling the agent in 1Password rewrites `~/.ssh/config`, which is a symlink into this repo, so expect a `git diff` afterwards and fold its block into the existing `Host *`.
 - **Commit signing** uses SSH keys via 1Password's `op-ssh-sign` (`gitconfig`, `[gpg "ssh"]`); the signing key itself is set per machine in `~/.gitconfig.local`.
-- **GitHub tokens** are loaded on demand: `github-pat` reads the MCP token from 1Password with `op read` only when you run it, and `gh` keeps its own stored login.
+- **GitHub** access goes through `gh`, which keeps its own stored login. No token is exported into the shell.
 
 ## Architecture
 

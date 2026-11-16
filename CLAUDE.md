@@ -102,7 +102,7 @@ Startup config lives in `fish/conf.d/`, which fish sources **before** `config.fi
 
 `config.fish` itself holds only the `config.local.fish` include, which must run last so it can override everything above.
 
-GitHub credentials are intentionally on demand: `github-pat` reads the MCP token from 1Password via `op read` only when requested, and `gh` uses its own stored authentication without exporting `GITHUB_TOKEN` on every shell's first prompt.
+GitHub access goes through `gh` and its own stored authentication. Nothing exports `GITHUB_TOKEN` into the shell, so a tool that wants a token in its environment needs its own arrangement rather than a startup export.
 
 Three rules that are easy to get wrong:
 
