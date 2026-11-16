@@ -36,7 +36,6 @@ nvim/
         ├── conform.lua             # Formatter chains + format-on-save
         ├── which-key.lua           # Keymap hint popup
         ├── claudecode.lua          # Claude Code AI integration
-        ├── agentic.lua             # Copilot CLI chat over ACP
         ├── mise.lua                # Refreshes mise environment after :cd
         ├── ruby-lsp.lua            # mise-aware Ruby LSP lifecycle
         ├── r-nvim.lua              # R REPL, language server, and R keymaps
@@ -67,7 +66,6 @@ nvim/
 | ruby-lsp.nvim | Manages ruby-lsp gem per active Ruby version (mise-aware) | ft=ruby |
 | R.nvim | R console, send-to-R, built-in R language server (`r_ls`) | startup (only acts in R/Rmd/Quarto buffers) |
 | claudecode.nvim | Claude Code terminal integration | keys |
-| agentic.nvim | Copilot CLI chat in the editor, over ACP (`copilot --acp`) | keys |
 | snacks.nvim | Picker (replaces telescope), lazygit float, UI primitives for claudecode | startup |
 | nvim-lspconfig | LSP server configurations | startup (see the note in the spec) |
 | mason.nvim | Install/manage LSP servers and tools | startup |
@@ -204,10 +202,6 @@ R.nvim's own default maps are turned off (`user_maps_only`) because they sit und
 | `\as` (NvimTree) | Add file to Claude |
 | `\aa` | Accept diff |
 | `\ad` | Deny diff |
-| `\agg` | Toggle Copilot chat (agentic.nvim; normal + visual) |
-| `\aga` | Add selection or file to Copilot context |
-| `\agn` | New Copilot session |
-| `\agr` | Restore Copilot session |
 
 ### Completion (blink.cmp)
 

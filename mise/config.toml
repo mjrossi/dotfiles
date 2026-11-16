@@ -1,7 +1,7 @@
 redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 
 [tools]
-"aqua:BurntSushi/ripgrep" = "latest"                             # snacks.picker grep / grep_word; nvim spawns processes without the shell, so a shell alias is not enough
+"aqua:BurntSushi/ripgrep" = "latest"                                 # snacks.picker grep / grep_word; nvim spawns processes without the shell, so a shell alias is not enough
 "aqua:FiloSottile/age" = "latest"
 "aqua:anthropics/claude-code" = "latest"
 "aqua:astral-sh/uv" = "latest"
@@ -9,8 +9,7 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "aqua:charmbracelet/gum" = "latest"
 "aqua:cli/cli" = "latest"
 "aqua:fullstorydev/grpcurl" = "latest"
-"aqua:github/copilot-cli" = "latest"
-"aqua:golangci/golangci-lint" = "latest"                         # global fallback only; repos pin their own version and that pin wins. Deliberately NOT go-installed and NOT a mason package — both would shadow a repo's pin (see tasks.install_go_tools)
+"aqua:golangci/golangci-lint" = "latest"                             # global fallback only; repos pin their own version and that pin wins. Deliberately NOT go-installed and NOT a mason package — both would shadow a repo's pin (see tasks.install_go_tools)
 "aqua:jesseduffield/lazygit" = "latest"
 "aqua:jqlang/jq" = "latest"
 "aqua:koalaman/shellcheck" = "latest"
@@ -18,17 +17,17 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "aqua:neovim/neovim" = "latest"
 "aqua:openai/codex" = "latest"
 "aqua:sharkdp/fd" = "latest"
-"aqua:tree-sitter/tree-sitter" = "latest"                        # nvim-treesitter (main branch) shells out to the CLI to build parsers
+"aqua:tree-sitter/tree-sitter" = "latest"                            # nvim-treesitter (main branch) shells out to the CLI to build parsers
 "aqua:zellij-org/zellij" = "latest"
-"github:jgm/pandoc" = "latest"                                   # rmarkdown::render shells out to it; RStudio/Positron bundle their own, VS Code and nvim do not
-"github:posit-dev/air" = "latest"                                # R formatter (conform + VS Code). Full backend name: the bare registry `air` is air-verse's Go live-reloader. Global fallback only; R projects pin their own
-"github:terror/just-lsp" = "latest"                              # VS Code's just extension looks for it on PATH; Mason's bin dir is nvim-only, so it lives here and nvim uses this copy too
-"go:github.com/tbvdm/sigtop/cmd/sigtop" = "latest"               # Signal Desktop export. No prebuilt macOS binary; this replaces the brew HEAD build, which needed Homebrew's own go. Release tags track master closely
+"github:jgm/pandoc" = "latest"                                       # rmarkdown::render shells out to it; RStudio/Positron bundle their own, VS Code and nvim do not
+"github:posit-dev/air" = "latest"                                    # R formatter (conform + VS Code). Full backend name: the bare registry `air` is air-verse's Go live-reloader. Global fallback only; R projects pin their own
+"github:terror/just-lsp" = "latest"                                  # VS Code's just extension looks for it on PATH; Mason's bin dir is nvim-only, so it lives here and nvim uses this copy too
+"go:github.com/tbvdm/sigtop/cmd/sigtop" = "latest"                   # Signal Desktop export. No prebuilt macOS binary; this replaces the brew HEAD build, which needed Homebrew's own go. Release tags track master closely
 "pipx:httpie" = "latest"
 go = { version = "1.27", postinstall = "mise run install_go_tools" }
 node = "26"
 python = "3.14"
-ruby = "4"                                                       # /usr/bin/ruby is 2.6.10; ruby-lsp + rubocop need a modern one
+ruby = "4"                                                           # /usr/bin/ruby is 2.6.10; ruby-lsp + rubocop need a modern one
 
 [settings]
 experimental = true

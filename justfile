@@ -32,13 +32,10 @@ dry-run:
     ./install.py --dry-run --verbose
 
 # These completions are snapshots of each CLI's own output and go stale as
-# the CLIs change. Review the diff before committing: copilot.fish in
-# particular was last committed in a different shape from what current
-# `copilot completion fish` prints.
+# the CLIs change. Review the diff before committing:
 #
 # Regenerate the copilot and docker fish completions from the CLIs
 completions:
-    copilot completion fish > fish/completions/copilot.fish
     docker completion fish > fish/completions/docker.fish
 
 # code-review-skill is the one personal Claude skill that tracks its upstream

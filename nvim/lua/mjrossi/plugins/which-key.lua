@@ -4,7 +4,6 @@ return {
     opts = {
         spec = {
             { "<leader>a", group = "AI" },
-            { "<leader>ag", group = "Copilot CLI" },
             { "<leader>c", group = "Code" },
             { "<leader>f", group = "Find (Snacks)" },
             { "<leader>g", group = "Git" },
