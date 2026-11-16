@@ -56,7 +56,7 @@ python3 -m unittest tests.test_install.TestFreshInstall -v
 
 - **TestUninstallWithBackups** — managed symlinks are removed and backups restored
 - **TestUninstallFreshMachine** — uninstall works when no backup exists
-- **TestMachineSpecificFilePreservation** — `fish/config.local.fish` and `zellij/config.kdl` are preserved across uninstall (with and without backup restoration); preservation handles missing local files; dry-run does not copy
+- **TestMachineSpecificFilePreservation** — `fish/config.local.fish` and `zellij/config.local.kdl` are preserved (the generated `config.kdl` is not) across uninstall (with and without backup restoration); preservation handles missing local files; dry-run does not copy
 - **TestDryRunMode** — backup dry-run makes no filesystem changes
 - **TestRemoveSymlinkRefusesExternal** — symlinks pointing outside the dotfiles dir are not removed
 - **TestRestoreBackupMissing** — restoring a legacy record returns false when no backup exists; dry-run preserves that signal

@@ -123,7 +123,8 @@ class TestMachineSpecificFilePreservation(DotfilesTestCase):
         zellij_dir = self.dotfiles_dir / "zellij"
         zellij_dir.mkdir()
         (zellij_dir / "config.shared.kdl").write_text("# shared")
-        (zellij_dir / "config.kdl").write_text("# machine-specific")
+        (zellij_dir / "config.kdl").write_text("# generated")
+        (zellij_dir / "config.local.kdl").write_text("# machine-specific")
 
         # Post-install state: destinations are symlinks to the dotfiles dirs
         (self.config_dir / "fish").symlink_to(fish_dir)
@@ -156,23 +157,25 @@ class TestMachineSpecificFilePreservation(DotfilesTestCase):
         self.assertTrue(preserved_file.exists())
         self.assertEqual(preserved_file.read_text(), "# machine-specific")
 
-    def test_preserve_zellij_config_kdl(self):
+    def test_preserve_zellij_config_local_kdl(self):
         zellij_dest = self.config_dir / "zellij"
 
         found = uninstall.find_preserved_file(
             'zellij', 'dir', zellij_dest, self.dotfiles_dir
         )
         self.assertIsNotNone(found)
-        self.assertEqual(found['filename'], 'config.kdl')
+        self.assertEqual(found['filename'], 'config.local.kdl')
 
         remove_symlink(zellij_dest, self.dotfiles_dir, dry_run=False, logger=self.logger)
 
         ok = uninstall.preserve_file(found, zellij_dest, dry_run=False, logger=self.logger)
 
         self.assertTrue(ok)
-        preserved_file = zellij_dest / "config.kdl"
+        preserved_file = zellij_dest / "config.local.kdl"
         self.assertTrue(preserved_file.exists())
         self.assertEqual(preserved_file.read_text(), "# machine-specific")
+        # The generated config.kdl is not carried over; install.py rebuilds it.
+        self.assertFalse((zellij_dest / "config.kdl").exists())
 
     def test_preserve_with_backup_restoration(self):
         fish_dest = self.config_dir / "fish"

@@ -51,7 +51,7 @@ Then restart your shell (`exec $SHELL`) and open `nvim` once to initialize plugi
 ./uninstall.py
 ```
 
-Removes only symlinks that point back into this repo, restores the exact `.bak` path recorded by `install.py`, and copies preserved machine-local files (`fish/config.local.fish`, `zellij/config.kdl`) back into the restored directories. Without a state record, backups are left untouched for manual recovery rather than guessed by filename.
+Removes only symlinks that point back into this repo, restores the exact `.bak` path recorded by `install.py`, and copies preserved machine-local files (`fish/config.local.fish`, `zellij/config.local.kdl`) back into the restored directories. Zellij's generated `config.kdl` is not carried over, so after an uninstall Zellij runs on its defaults until you rebuild it or merge the preserved overrides by hand. Without a state record, backups are left untouched for manual recovery rather than guessed by filename.
 
 ## Package management
 

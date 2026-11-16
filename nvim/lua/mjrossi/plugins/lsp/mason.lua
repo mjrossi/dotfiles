@@ -53,9 +53,6 @@ return {
             --               ruby-lsp also runs the project's bundled rubocop itself,
             --               so it is the single source of Ruby diagnostics and
             --               formatting.
-            --   rubocop  -- no longer installed here, but a Mason copy left over from
-            --               earlier configs would otherwise be enabled as a second
-            --               server and report every offense twice.
             --   stylua   -- conform already formats lua with it.
             -- ruff is deliberately NOT excluded: its server is the only thing
             -- publishing python diagnostics (nvim-lint no longer
@@ -64,7 +61,7 @@ return {
             -- filetype there and lsp_format only applies as a fallback.
             -- Installing the server also provides the `ruff` binary that
             -- conform's ruff_organize_imports/ruff_format shell out to.
-            automatic_enable = { exclude = { "ruby_lsp", "rubocop", "stylua" } },
+            automatic_enable = { exclude = { "ruby_lsp", "stylua" } },
         })
 
         mason_tool_installer.setup({
