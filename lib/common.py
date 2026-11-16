@@ -32,10 +32,18 @@ CONFIG_FILES: dict[str, Path] = {
     'ssh/config': Path.home() / '.ssh' / 'config',
 }
 
+
+
+def get_dotfiles_dir() -> Path:
+    """Get absolute path to dotfiles directory"""
+    # Assumes this file is in lib/common.py, so dotfiles dir is parent.parent
+    return Path(__file__).parent.parent.resolve()
+
+
 # State file location. Override via DOTFILES_STATE_FILE for isolated test
 # runs (CI smoke test, local sandbox) so a scratch HOME doesn't share state
 # with the user's real installation.
-STATE_FILE = Path(__file__).parent.parent / '.dotfiles-state'
+STATE_FILE = get_dotfiles_dir() / '.dotfiles-state'
 
 
 class Logger:
@@ -149,29 +157,67 @@ class StateManager:
             json.dump(state, f, indent=2)
         os.replace(tmp, self.state_file)
 
-    def load(self) -> list[dict[str, Any]]:
-        """Load state from JSON file"""
+    def load(self, logger: Logger | None = None) -> list[dict[str, Any]]:
+        """Load state from the JSON file into self.installations and return it.
+
+        Records written by version 1.0 know only that a backup was taken, not
+        what it was called. They are upgraded here, once, by resolving the
+        backup filename with discover_backup() and recording it, so that a
+        file saved afterwards as 1.1 never holds 1.0-shaped records and
+        nothing downstream needs a second, legacy code path.
+        """
+        self.installations = []
         if not self.state_file.exists():
-            return []
+            return self.installations
 
         try:
             with open(self.state_file, 'r') as f:
                 state = json.load(f)
-                return state.get('installed', [])
-        except (json.JSONDecodeError, KeyError) as e:
-            print(f"Warning: Could not parse state file: {e}", file=sys.stderr)
-            return []
+        except json.JSONDecodeError as e:
+            msg = f"Could not parse state file: {e}"
+            if logger:
+                logger.warning(msg)
+            else:
+                print(f"Warning: {msg}", file=sys.stderr)
+            return self.installations
+
+        self.installations = [
+            self._migrate_record(record) for record in state.get('installed', [])
+        ]
+        return self.installations
+
+    @staticmethod
+    def _migrate_record(record: dict[str, Any]) -> dict[str, Any]:
+        """Upgrade a 1.0 record (no backup_path key) to the 1.1 shape."""
+        if 'backup_path' in record:
+            return record
+        backup = None
+        if record.get('backup_created') is True:
+            backup = discover_backup(Path(record['destination']))
+        return {**record, 'backup_path': str(backup) if backup is not None else None}
+
+    def prune(self, configured_sources: set[str], dotfiles_dir: Path) -> list[dict[str, Any]]:
+        """Drop records for sources that are no longer configured.
+
+        Only records that uninstall could no longer act on are dropped: if the
+        destination is still a symlink into this repo, the record is kept, so
+        uninstall can still remove that link and restore its backup. Returns
+        the records that were kept despite their source being gone.
+        """
+        kept, orphaned = [], []
+        for record in self.installations:
+            if record['source'] in configured_sources:
+                kept.append(record)
+            elif is_managed_symlink(Path(record['destination']), dotfiles_dir):
+                kept.append(record)
+                orphaned.append(record)
+        self.installations = kept
+        return orphaned
 
     def clear(self) -> None:
         """Remove state file"""
         if self.state_file.exists():
             self.state_file.unlink()
-
-
-def get_dotfiles_dir() -> Path:
-    """Get absolute path to dotfiles directory"""
-    # Assumes this file is in lib/common.py, so dotfiles dir is parent.parent
-    return Path(__file__).parent.parent.resolve()
 
 
 def backup_path(path: Path, dry_run: bool = False, logger: Logger | None = None) -> Path | None:
@@ -207,12 +253,13 @@ def backup_path(path: Path, dry_run: bool = False, logger: Logger | None = None)
 
 def discover_backup(path: Path) -> Path | None:
     """
-    Find the backup that `restore_backup` would restore, or None.
+    Find the newest backup of `path`, or None.
 
     Only for legacy 1.0 state records, which know that a backup was taken but
     not what it was named, so the name has to be guessed back: the
-    highest-numbered `.bak.N` is the newest. Records written by this version
-    carry the exact path instead -- see `restore_backup_at`.
+    highest-numbered `.bak.N` is the newest. StateManager.load() calls this
+    once to upgrade such records; records written by this version carry the
+    exact path instead -- see `restore_backup_at`.
     """
     counter = 1
     while Path(f"{path}.bak.{counter}").exists():
@@ -223,31 +270,6 @@ def discover_backup(path: Path) -> Path | None:
     if Path(f"{path}.bak").exists():
         return Path(f"{path}.bak")
     return None
-
-
-def restore_backup(path: Path, dry_run: bool = False, logger: Logger | None = None) -> bool:
-    """
-    Rename path.bak back to path
-
-    Args:
-        path: Path to restore (will look for path.bak)
-        dry_run: If True, don't actually move files
-        logger: Optional logger for debug output
-
-    Returns:
-        True if backup was restored, False otherwise
-    """
-    backup = discover_backup(path)
-    if backup is None:
-        return False
-
-    if logger:
-        logger.debug(f"Restoring backup {backup} -> {path}")
-
-    if not dry_run:
-        shutil.move(backup, path)
-
-    return True
 
 
 def restore_backup_at(
@@ -340,6 +362,20 @@ def remove_symlink(dest: Path, dotfiles_dir: Path, dry_run: bool = False, logger
     return True
 
 
+def symlink_target(path: Path) -> Path:
+    """Absolute, normalised path that the symlink `path` points at.
+
+    Relative link text is taken relative to the link's own directory, and the
+    result is resolved, so absolute link text containing ``..`` segments (or
+    passing through other symlinks) is normalised too. Raises OSError if
+    `path` is not a symlink.
+    """
+    target = path.readlink()
+    if not target.is_absolute():
+        target = path.parent / target
+    return target.resolve()
+
+
 def is_managed_symlink(path: Path, dotfiles_dir: Path) -> bool:
     """
     Check if symlink points to our dotfiles
@@ -355,12 +391,10 @@ def is_managed_symlink(path: Path, dotfiles_dir: Path) -> bool:
         return False
 
     try:
-        target = path.readlink()
-        # Normalize both absolute and relative targets. Absolute symlink text
-        # can still contain ``..`` segments that escape the repository.
-        if not target.is_absolute():
-            target = path.parent / target
-        target = target.resolve()
+        # symlink_target normalises absolute and relative link text alike;
+        # absolute text can still contain ``..`` segments that escape the
+        # repository.
+        target = symlink_target(path)
         dotfiles_dir = dotfiles_dir.resolve()
 
         # is_relative_to avoids the prefix-match pitfall of str.startswith,

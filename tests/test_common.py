@@ -17,10 +17,11 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.common import (
-    Logger, StateManager,
+    STATE_FILE, Logger, StateManager,
     create_symlink, get_dotfiles_dir, is_managed_symlink,
     prompt_user, remove_symlink,
 )
+from contextlib import redirect_stdout
 
 
 class TestPromptUser(unittest.TestCase):
@@ -155,6 +156,136 @@ class TestStateManagerDedup(unittest.TestCase):
 
         self.assertEqual(len(records), 1)
         self.assertTrue(records[0]['backup_created'])
+
+
+class TestStateMigration(unittest.TestCase):
+    """load() upgrades 1.0 records to 1.1 by recording the discovered backup."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.root = Path(self.test_dir)
+        self.state_file = self.root / ".dotfiles-state"
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def _write_v10(self, records):
+        self.state_file.write_text(json.dumps({'version': '1.0', 'installed': records}))
+
+    def test_backup_created_record_gets_newest_backup_path(self):
+        dest = self.root / 'fish'
+        (self.root / 'fish.bak').mkdir()
+        (self.root / 'fish.bak.1').mkdir()
+        self._write_v10([{
+            'type': 'dir', 'source': 'fish',
+            'destination': str(dest), 'backup_created': True,
+        }])
+
+        state = StateManager(state_file=self.state_file)
+        records = state.load()
+
+        self.assertIs(records, state.installations)
+        self.assertEqual(records[0]['backup_path'], str(self.root / 'fish.bak.1'))
+        self.assertTrue(records[0]['backup_created'])
+
+    def test_records_without_a_findable_backup_get_none(self):
+        self._write_v10([
+            {'type': 'dir', 'source': 'fish',
+             'destination': str(self.root / 'fish'), 'backup_created': True},
+            {'type': 'dir', 'source': 'mise',
+             'destination': str(self.root / 'mise'), 'backup_created': False},
+        ])
+        # A stray .bak next to a record that took no backup is not claimed.
+        (self.root / 'mise.bak').mkdir()
+
+        records = StateManager(state_file=self.state_file).load()
+
+        self.assertIsNone(records[0]['backup_path'])
+        self.assertIsNone(records[1]['backup_path'])
+
+    def test_v11_records_are_left_alone(self):
+        recorded = str(self.root / 'fish.bak')
+        self.state_file.write_text(json.dumps({'version': '1.1', 'installed': [{
+            'type': 'dir', 'source': 'fish', 'destination': str(self.root / 'fish'),
+            'backup_created': True, 'backup_path': recorded,
+        }]}))
+        # A newer-looking backup on disk must not override the recorded one.
+        (self.root / 'fish.bak.3').mkdir()
+
+        records = StateManager(state_file=self.state_file).load()
+
+        self.assertEqual(records[0]['backup_path'], recorded)
+
+    def test_saved_file_holds_only_v11_records(self):
+        dest = self.root / 'gitconfig'
+        (self.root / 'gitconfig.bak').write_text('old')
+        self._write_v10([{
+            'type': 'file', 'source': 'gitconfig',
+            'destination': str(dest), 'backup_created': True,
+        }])
+
+        state = StateManager(state_file=self.state_file)
+        state.load()
+        state.save()
+
+        saved = json.loads(self.state_file.read_text())
+        self.assertEqual(saved['version'], '1.1')
+        self.assertEqual(saved['installed'][0]['backup_path'], str(self.root / 'gitconfig.bak'))
+
+    def test_parse_failure_reported_through_logger(self):
+        self.state_file.write_text("{not json")
+        out = io.StringIO()
+        with redirect_stdout(out):
+            records = StateManager(state_file=self.state_file).load(Logger(verbose=False))
+
+        self.assertEqual(records, [])
+        self.assertIn("Could not parse state file", out.getvalue())
+
+
+class TestStatePrune(unittest.TestCase):
+    """prune() forgets records for removed sources that uninstall can't act on."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.root = Path(self.test_dir)
+        self.dotfiles_dir = self.root / 'dotfiles'
+        self.dotfiles_dir.mkdir()
+        self.state = StateManager(state_file=self.root / '.dotfiles-state')
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_drops_unconfigured_source_without_symlink(self):
+        self.state.add('dir', 'fish', self.root / 'fish', backup_created=False)
+        self.state.add('dir', 'launchd', self.root / 'LaunchAgents', backup_created=False)
+
+        orphaned = self.state.prune({'fish'}, self.dotfiles_dir)
+
+        self.assertEqual([r['source'] for r in self.state.installations], ['fish'])
+        self.assertEqual(orphaned, [])
+
+    def test_keeps_unconfigured_source_whose_symlink_remains(self):
+        # The source dir is gone from the repo, but the link (now dangling)
+        # still points into it: uninstall needs the record to remove it and
+        # to restore the backup taken when it was installed.
+        dest = self.root / 'LaunchAgents'
+        dest.symlink_to(self.dotfiles_dir / 'launchd')
+        self.state.add(
+            'dir', 'launchd', dest, backup_created=True,
+            backup_path=self.root / 'LaunchAgents.bak',
+        )
+
+        orphaned = self.state.prune({'fish'}, self.dotfiles_dir)
+
+        self.assertEqual(len(self.state.installations), 1)
+        self.assertEqual(orphaned[0]['source'], 'launchd')
+
+
+class TestStateFileLocation(unittest.TestCase):
+    """The default state file sits at the root of the dotfiles repo."""
+
+    def test_default_state_file_is_in_dotfiles_dir(self):
+        self.assertEqual(STATE_FILE, get_dotfiles_dir() / '.dotfiles-state')
 
 
 class TestGetDotfilesDir(unittest.TestCase):

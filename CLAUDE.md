@@ -81,7 +81,7 @@ just --list
 
 ### State tracking
 
-`.dotfiles-state` (JSON, gitignored) records every installed symlink with its source, destination, exact backup path (or `null`), and timestamp. `uninstall.py` uses this to know exactly what to remove and restore. Version 1.0 state files only contain `backup_created`; they remain supported via legacy filename discovery. With no state, uninstall removes managed symlinks but leaves backups untouched rather than guessing ownership.
+`.dotfiles-state` (JSON, gitignored) records every installed symlink with its source, destination, exact backup path (or `null`), and timestamp. `uninstall.py` uses this to know exactly what to remove and restore. Version 1.0 state files only contain `backup_created`; `StateManager.load()` upgrades those records once by discovering the newest `.bak` and recording its path, so everything downstream deals with 1.1 records only. On install, records for sources no longer in `CONFIG_DIRS`/`CONFIG_FILES` are dropped, unless their destination still links into the repo (uninstall still needs those). With no state, uninstall removes managed symlinks but leaves backups untouched rather than guessing ownership.
 
 ### Fish startup layout
 
