@@ -40,8 +40,15 @@
   command = push --force-with-lease
 [push]
   default = current
+  # First push of a new branch sets its upstream, so no `-u` is needed.
+  autoSetupRemote = true
 [rebase]
   autosquash = true
+  # Stash a dirty tree around a rebase instead of refusing to start.
+  autoStash = true
+  # Move branch refs that point into the rebased range (stacked branches)
+  # along with it, rather than leaving them on the old commits.
+  updateRefs = true
 [core]
   autocrlf = input
   excludesfile = ~/.gitignore_global
@@ -55,6 +62,8 @@
   allowedSignersFile = ~/.ssh/allowed_signers
 [commit]
   gpgsign = true
+  # Show the diff being committed below the message in the editor.
+  verbose = true
 [include]
   path = ~/.gitconfig.local
 [pull]
@@ -76,3 +85,6 @@
   prune = true
 [merge]
   conflictstyle = zdiff3
+[help]
+  # Offer the corrected command for a typo and ask before running it.
+  autocorrect = prompt

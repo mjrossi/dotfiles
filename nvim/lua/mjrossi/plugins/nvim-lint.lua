@@ -14,16 +14,12 @@ return {
         local group = vim.api.nvim_create_augroup("mjrossi-lint", { clear = true })
         vim.api.nvim_create_autocmd("BufWritePost", {
             group = group,
-            callback = function()
-                lint.try_lint()
-            end,
+            callback = function() lint.try_lint() end,
         })
         vim.api.nvim_create_autocmd("FileType", {
             group = group,
             pattern = { "go" },
-            callback = function()
-                lint.try_lint()
-            end,
+            callback = function() lint.try_lint() end,
         })
 
         -- The FileType event that loaded this plugin has already fired, so

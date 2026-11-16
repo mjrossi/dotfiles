@@ -35,8 +35,9 @@ return {
             -- it explicitly.
             ensure_installed = {
                 "lua_ls",
-                "mdx_analyzer", -- .mdx blog posts; see the filetype rule in core/options.lua
-                                -- and the TypeScript guard in nvim-lspconfig.lua
+                -- .mdx blog posts; see the filetype rule in core/options.lua
+                -- and the TypeScript guard in nvim-lspconfig.lua
+                "mdx_analyzer",
                 "pyright",
                 "ruff",
                 "taplo",
@@ -73,10 +74,10 @@ return {
                 -- `golangcilint` from PATH matches `just lint` and CI. PATH =
                 -- "append" above would keep a Mason copy from shadowing it, but
                 -- installing one would only add a stale fallback.
-                "goimports",       -- go import organizer (used by conform)
-                "prettier",        -- yaml formatter
-                "stylua",          -- lua formatter
-                "taplo",           -- toml formatter
+                "goimports", -- go import organizer (used by conform)
+                "prettier", -- yaml formatter
+                "stylua", -- lua formatter
+                "taplo", -- toml formatter
             },
         })
     end,

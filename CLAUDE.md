@@ -83,6 +83,7 @@ Startup config lives in `fish/conf.d/`, which fish sources **before** `config.fi
 | `00-homebrew.fish` | always | Homebrew env, before anything that needs brew paths |
 | `10-paths.fish` | always | `~/.local/bin`, prepended after Homebrew so it wins |
 | `20-env.fish` | always | `EDITOR`, `SSH_AUTH_SOCK` |
+| `25-mise.fish` | always | `mise activate` when interactive, shims dir on PATH otherwise; disables Homebrew's `vendor_conf.d/mise-activate.fish` |
 | `30-interactive.fish` | interactive only | colours, abbreviations, `GPG_TTY` |
 
 `config.fish` itself holds only the `config.local.fish` include, which must run last so it can override everything above.

@@ -15,7 +15,7 @@ return {
             python = { "ruff_organize_imports", "ruff_format" },
             -- No ruby entry: ruby-lsp formats with the project's bundled
             -- rubocop, reached through the lsp_format fallback below.
-            go = { "goimports" },          -- goimports includes gofmt; no need for both
+            go = { "goimports" }, -- goimports includes gofmt; no need for both
             yaml = { "prettier" },
             toml = { "taplo" },
             -- air is mise-managed (global fallback, project pin wins), not mason.

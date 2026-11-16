@@ -25,10 +25,13 @@ return {
         },
     },
     keys = {
-        { "<leader>ff", function() Snacks.picker.files() end,     desc = "Find Files" },
-        { "<leader>fg", function() Snacks.picker.grep() end,      desc = "Live Grep" },
-        { "<leader>fb", function() Snacks.picker.buffers() end,   desc = "Find Buffer" },
-        { "<leader>fh", function() Snacks.picker.help() end,      desc = "Find Help" },
+        { "<leader>ff", function() Snacks.picker.files() end, desc = "Find Files" },
+        { "<leader>fg", function() Snacks.picker.grep() end, desc = "Live Grep" },
+        { "<leader>fb", function() Snacks.picker.buffers() end, desc = "Find Buffer" },
+        { "<leader>fh", function() Snacks.picker.help() end, desc = "Find Help" },
         { "<leader>fw", function() Snacks.picker.grep_word() end, desc = "Find word under cursor" },
+        -- lazygit is installed globally by mise; this opens it in a float
+        -- themed to match the current colorscheme.
+        { "<leader>gg", function() Snacks.lazygit() end, desc = "Lazygit" },
     },
 }
