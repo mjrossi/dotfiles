@@ -13,7 +13,8 @@ return {
         formatters_by_ft = {
             lua = { "stylua" },
             python = { "ruff_organize_imports", "ruff_format" },
-            ruby = { "rubocop" },
+            -- No ruby entry: ruby-lsp formats with the project's bundled
+            -- rubocop, reached through the lsp_format fallback below.
             go = { "goimports" },          -- goimports includes gofmt; no need for both
             yaml = { "prettier" },
             toml = { "taplo" },

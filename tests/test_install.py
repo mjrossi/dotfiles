@@ -681,6 +681,8 @@ class TestInstallBrewfile(unittest.TestCase):
         self.assertEqual(mock_run.call_count, 1)
         called_args = mock_run.call_args.args[0]
         self.assertIn('check', called_args)
+        # An outdated formula must not count as unsatisfied
+        self.assertIn('--no-upgrade', called_args)
 
     def test_dry_run_with_unsatisfied_brewfile_does_not_install(self):
         (self.dotfiles_dir / "Brewfile").write_text("brew 'mise'\n")
@@ -718,6 +720,28 @@ class TestInstallBrewfile(unittest.TestCase):
             )
 
         self.assertIs(result, False)
+
+    def test_bundle_calls_never_upgrade(self):
+        (self.dotfiles_dir / "Brewfile").write_text("brew 'mise'\n")
+        check_result = subprocess.CompletedProcess(args=[], returncode=1, stdout='', stderr='')
+        install_result = subprocess.CompletedProcess(args=[], returncode=0, stdout='', stderr='')
+
+        with mock.patch(
+            'install.subprocess.run', side_effect=[check_result, install_result]
+        ) as mock_run, mock.patch(
+            'install.shutil.which', return_value='/usr/local/bin/brew'
+        ), mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('DOTFILES_SKIP_BREW', None)
+            result = install.install_brewfile(
+                self.dotfiles_dir, _make_args(), self.logger
+            )
+
+        self.assertIs(result, True)
+        check_cmd, install_cmd = (c.args[0] for c in mock_run.call_args_list)
+        self.assertEqual(check_cmd[:3], ['brew', 'bundle', 'check'])
+        self.assertEqual(install_cmd[:3], ['brew', 'bundle', 'install'])
+        self.assertIn('--no-upgrade', check_cmd)
+        self.assertIn('--no-upgrade', install_cmd)
 
 
 class TestInstallMainFailures(unittest.TestCase):

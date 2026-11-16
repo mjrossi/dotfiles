@@ -9,7 +9,6 @@ vim.keymap.set("n", "<leader>nh", ':noh<CR>', {
     silent = true,
 })
 
--- Quality-of-Life improvements
-vim.keymap.set("n", "Y", "y$", { desc = "Yank to end of line" })
+-- Quality-of-Life improvements. Y (yank to end of line) and visual * (search
+-- for the selection) are Nvim defaults, so they are not mapped here.
 vim.keymap.set("x", "p", '"_dP', { desc = "Paste without yanking" })
-vim.keymap.set("x", "*", [[y/\V<C-R>=escape(@",'/\\')<CR><CR>]], { desc = "Search selection" })

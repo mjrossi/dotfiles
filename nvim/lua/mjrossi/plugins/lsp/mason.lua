@@ -14,6 +14,11 @@ return {
 
         -- enable mason and configure icons
         mason.setup({
+            -- Append rather than prepend Mason's bin dir to Neovim's PATH, so a
+            -- binary from mise or a project pin always wins and Mason's copy is
+            -- only the fallback. With the default "prepend", Mason's gopls,
+            -- ruff and friends silently shadowed the versions a repo pins.
+            PATH = "append",
             ui = {
                 icons = {
                     package_installed = "✓",
@@ -25,8 +30,10 @@ return {
 
         mason_lspconfig.setup({
             -- list of servers for mason to install
+            -- No gopls: mise's install_go_tools task builds it per Go version
+            -- (it links against the toolchain), and nvim-lspconfig.lua enables
+            -- it explicitly.
             ensure_installed = {
-                "gopls",
                 "lua_ls",
                 "mdx_analyzer", -- .mdx blog posts; see the filetype rule in core/options.lua
                                 -- and the TypeScript guard in nvim-lspconfig.lua
@@ -42,11 +49,15 @@ return {
             -- up the formatters mason-tool-installer installs below.
             --   ruby_lsp -- ruby-lsp.nvim (plugins/ruby-lsp.lua) owns it, so the gem runs
             --               against the mise-selected Ruby; two owners defeats that.
-            --   rubocop  -- conform formats with it and nvim-lint lints with it; the LSP
-            --               server publishes the same offenses again, doubling diagnostics.
+            --               ruby-lsp also runs the project's bundled rubocop itself,
+            --               so it is the single source of Ruby diagnostics and
+            --               formatting.
+            --   rubocop  -- no longer installed here, but a Mason copy left over from
+            --               earlier configs would otherwise be enabled as a second
+            --               server and report every offense twice.
             --   stylua   -- conform already formats lua with it.
-            -- ruff is deliberately NOT excluded: unlike rubocop, its server is
-            -- the only thing publishing python diagnostics (nvim-lint no longer
+            -- ruff is deliberately NOT excluded: its server is the only thing
+            -- publishing python diagnostics (nvim-lint no longer
             -- has a python entry), so it needs to be enabled. Its formatting
             -- does not clash with conform either, since python is a configured
             -- filetype there and lsp_format only applies as a fallback.
@@ -57,15 +68,13 @@ return {
 
         mason_tool_installer.setup({
             ensure_installed = {
-                -- NOT golangci-lint: mason prepends its bin dir to PATH, so a
-                -- mason copy shadows the version a repo pins via mise/aqua and
-                -- the editor then lints with different rules than `just lint`
-                -- and CI. mise owns this binary instead — per-project pin
-                -- inside a repo, global fallback outside — so nvim-lint
-                -- resolving `golangcilint` from PATH is correct everywhere.
+                -- NOT golangci-lint: mise owns it (per-project pin inside a
+                -- repo, global fallback outside), so nvim-lint resolving
+                -- `golangcilint` from PATH matches `just lint` and CI. PATH =
+                -- "append" above would keep a Mason copy from shadowing it, but
+                -- installing one would only add a stale fallback.
                 "goimports",       -- go import organizer (used by conform)
                 "prettier",        -- yaml formatter
-                "rubocop",         -- ruby linter + formatter
                 "stylua",          -- lua formatter
                 "taplo",           -- toml formatter
             },

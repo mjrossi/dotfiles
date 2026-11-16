@@ -410,8 +410,11 @@ def build_arg_parser(
                         help='Preview changes without executing')
     parser.add_argument('--verbose', action='store_true',
                         help='Show detailed output')
+    # install.py never prompts, so --force only does something for
+    # uninstall.py. It stays on both so scripts can pass it either way.
     parser.add_argument('--force', action='store_true',
-                        help='Override without prompts')
+                        help='Skip confirmation prompts (uninstall only; '
+                             'install never prompts)')
     if include_skip_brew:
         parser.add_argument('--skip-brew', action='store_true',
                             help='Skip Brewfile install step (also: DOTFILES_SKIP_BREW=1)')

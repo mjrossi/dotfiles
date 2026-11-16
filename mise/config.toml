@@ -2,6 +2,7 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 
 [tools]
 "aqua:BurntSushi/ripgrep" = "latest"                             # snacks.picker grep / grep_word; nvim spawns processes without the shell, so a shell alias is not enough
+"aqua:FiloSottile/age" = "latest"
 "aqua:anthropics/claude-code" = "latest"
 "aqua:astral-sh/uv" = "latest"
 "aqua:casey/just" = "latest"
@@ -14,16 +15,17 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "aqua:jqlang/jq" = "latest"
 "aqua:koalaman/shellcheck" = "latest"
 "aqua:mikefarah/yq" = "latest"
-"aqua:openai/codex" = "latest"
 "aqua:neovim/neovim" = "latest"
+"aqua:openai/codex" = "latest"
 "aqua:sharkdp/fd" = "latest"
 "aqua:tree-sitter/tree-sitter" = "latest"                        # nvim-treesitter (main branch) shells out to the CLI to build parsers
 "aqua:zellij-org/zellij" = "latest"
 "github:jgm/pandoc" = "latest"                                   # rmarkdown::render shells out to it; RStudio/Positron bundle their own, VS Code and nvim do not
 "github:posit-dev/air" = "latest"                                # R formatter (conform + VS Code). Full backend name: the bare registry `air` is air-verse's Go live-reloader. Global fallback only; R projects pin their own
 "github:terror/just-lsp" = "latest"                              # VS Code's just extension looks for it on PATH; Mason's bin dir is nvim-only, so it lives here and nvim uses this copy too
+"go:github.com/tbvdm/sigtop/cmd/sigtop" = "latest"               # Signal Desktop export. No prebuilt macOS binary; this replaces the brew HEAD build, which needed Homebrew's own go. Release tags track master closely
 "pipx:httpie" = "latest"
-go = { version = "1.27", postinstall = "mise install_go_tools" }
+go = { version = "1.27", postinstall = "mise run install_go_tools" }
 node = "26"
 python = "3.14"
 ruby = "4"                                                       # /usr/bin/ruby is 2.6.10; ruby-lsp + rubocop need a modern one
@@ -35,9 +37,11 @@ idiomatic_version_file_enable_tools = [
 ] # honour per-project .ruby-version
 python.uv_venv_auto = true
 
+# MACOSX_DEPLOYMENT_TARGET used to be set here, but [env] is evaluated on
+# every prompt and its sw_vers call cost ~11ms each time. Only native builds
+# need it, so brew-compile-env (fish/functions) sets it on demand instead.
 [env]
 MISE_ENV = "development"
-MACOSX_DEPLOYMENT_TARGET = "{{ exec(command='sw_vers -productVersion | cut -d. -f1-2') }}"
 
 [tasks.install_go_tools]
 description = "Install Go Tools Specific to a Version of Go"

@@ -175,6 +175,9 @@ def install_brewfile(dotfiles_dir, args, logger):
     Skips silently when brew is unavailable, the opt-out flag/env is set,
     or the Brewfile is already satisfied. Never runs `cleanup`, so packages
     present on the machine but absent from the Brewfile are left alone.
+    Both bundle calls pass --no-upgrade: without it `check` fails whenever a
+    listed formula is merely outdated, and `install` then upgrades it, which
+    is not what an additive, install-what-is-missing step should do.
     Returns False only when an attempted bundle installation fails.
     """
     if args.skip_brew or os.environ.get('DOTFILES_SKIP_BREW'):
@@ -192,19 +195,19 @@ def install_brewfile(dotfiles_dir, args, logger):
 
     logger.header("Checking Brewfile...")
     check = subprocess.run(
-        ['brew', 'bundle', 'check', f'--file={brewfile}'],
+        ['brew', 'bundle', 'check', '--no-upgrade', f'--file={brewfile}'],
         capture_output=True, text=True,
     )
     if check.returncode == 0:
         logger.success("Brewfile dependencies already satisfied", indent=True)
         return True
 
+    install_cmd = ['brew', 'bundle', 'install', '--no-upgrade', f'--file={brewfile}']
     if args.dry_run:
-        logger.info(f"Would run: brew bundle install --file={brewfile}", indent=True)
+        logger.info(f"Would run: {' '.join(install_cmd)}", indent=True)
         return True
 
     logger.info("Installing missing Brewfile packages...", indent=True)
-    install_cmd = ['brew', 'bundle', 'install', f'--file={brewfile}']
     if args.verbose:
         result = subprocess.run(install_cmd)
     else:
@@ -230,7 +233,7 @@ Examples:
   ./install.py                    # Install dotfiles
   ./install.py --dry-run          # Preview changes without executing
   ./install.py --verbose          # Show detailed output
-  ./install.py --force            # Override without prompts
+  ./install.py --force            # Accepted for symmetry; install never prompts
   ./install.py --dry-run --verbose # Combine flags
         """,
         include_skip_brew=True,
