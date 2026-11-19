@@ -1,3 +1,11 @@
+# Specific hosts first, defaults last: OpenSSH uses the first value it
+# obtains for each keyword, so a Host * block above a specific host would
+# silently override that host's settings.
+
+Host mjrnas.tail1737c.ts.net
+    HostName mjrnas.tail1737c.ts.net
+    SetEnv TERM=xterm-256color
+
 # 1Password SSH agent.
 #
 # The agent is a local socket served by the 1Password app, so there is no
@@ -11,7 +19,3 @@ Host *
     # including the stale ~/.ssh/id_rsa from 2017.
     IdentityFile ~/.ssh/id_ed25519.pub
     IdentitiesOnly yes
-
-Host mjrnas.tail1737c.ts.net
-    HostName mjrnas.tail1737c.ts.net
-    SetEnv TERM=xterm-256color

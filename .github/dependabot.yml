@@ -1,0 +1,9 @@
+# Keeps the action versions in .github/workflows current. Nothing else here
+# has a lockfile for dependabot to update: Python is stdlib only, and mise
+# tools deliberately track "latest".
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

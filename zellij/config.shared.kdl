@@ -7,7 +7,11 @@
 // of the then-current defaults, which silently froze the keymap and hid
 // everything 0.44 and 0.45 added.
 
-theme "tokyonight"
+// Zellij's built-in Tokyo Night Night palette, matching Ghostty and Neovim.
+// The built-in names are hyphenated (tokyo-night, -storm, -light, -dark); an
+// unknown name such as "tokyonight" is not an error, it silently falls back
+// to the default theme.
+theme "tokyo-night"
 
 // Startup tips are noise once you know the tool. Release notes stay on, since
 // that is how new keybindings get announced.

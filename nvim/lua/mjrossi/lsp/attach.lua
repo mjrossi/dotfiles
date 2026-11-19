@@ -3,8 +3,8 @@
 -- idiom (:h lsp-attach) and it keeps server specs to just their settings.
 --
 -- Nvim maps several LSP actions out of the box (K, grn, gra, grr, gri, grt,
--- gO), so those are deliberately not repeated here. What follows are the
--- vim-classic aliases this config has always used.
+-- gO), and diagnostic jumps ([d, ]d), so those are deliberately not repeated
+-- here. What follows are the vim-classic aliases this config has always used.
 vim.api.nvim_create_autocmd("LspAttach", {
     group = vim.api.nvim_create_augroup("mjrossi_lsp_attach", { clear = true }),
     callback = function(args)
@@ -19,7 +19,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
         end
 
         vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
-        vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
+        -- gr is a prefix of Nvim's built-in grn/gra/grr/gri/grt, so without
+        -- nowait it would sit through a full timeoutlen before firing.
+        vim.keymap.set("n", "gr", vim.lsp.buf.references, vim.tbl_extend("force", opts, { nowait = true }))
         vim.keymap.set("n", "gD", vim.lsp.buf.declaration, opts)
         vim.keymap.set("n", "gi", vim.lsp.buf.implementation, opts)
         vim.keymap.set("n", "gt", vim.lsp.buf.type_definition, opts)
@@ -28,8 +30,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
         vim.keymap.set("n", "<leader>rs", "<cmd>lsp restart<cr>", opts)
 
         vim.keymap.set("n", "gl", vim.diagnostic.open_float, opts)
-        vim.keymap.set("n", "[d", function() vim.diagnostic.jump({ count = -1 }) end, opts)
-        vim.keymap.set("n", "]d", function() vim.diagnostic.jump({ count = 1 }) end, opts)
         vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, opts)
     end,
 })

@@ -13,11 +13,19 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+        # The two ends that matter: 3.9 is the floor the scripts promise (and
+        # macOS's system python3), 3.14 the newest. The scripts are stdlib
+        # only, so the versions in between mostly re-run the same code.
+        python-version: ['3.9', '3.14']
+        # setup-python has no 3.9 build for the current Ubuntu image. The 3.9
+        # floor exists for macOS's system python3, so that is where it runs.
+        exclude:
+          - os: ubuntu-latest
+            python-version: '3.9'
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -m unittest discover tests -v
@@ -29,8 +37,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install + reinstall + uninstall against scratch HOME
@@ -43,3 +51,26 @@ jobs:
           ./install.py --force --skip-brew
           ./install.py --force --skip-brew
           ./uninstall.py --force
+
+  lint:
+    runs-on: ubuntu-latest
+    # mise treats mise/config.toml in the checkout as a project config and
+    # would install every global tool from it (sigtop does not build on
+    # Linux). This job wants only the two tools named below.
+    env:
+      MISE_IGNORED_CONFIG_PATHS: ${{ github.workspace }}/mise
+    steps:
+      - uses: actions/checkout@v7
+      # Only needs to parse the files (fish --no-execute), so the distro's
+      # fish is new enough.
+      - run: sudo apt-get update && sudo apt-get install -y fish
+      # just and stylua from mise, as on the desktop. The repo's own
+      # mise/config.toml is the global config, not a project one, so the
+      # tools are listed inline here instead.
+      - uses: jdx/mise-action@v5
+        with:
+          mise_toml: |
+            [tools]
+            "aqua:casey/just" = "latest"
+            "aqua:JohnnyMorganz/StyLua" = "latest"
+      - run: just lint

@@ -22,12 +22,13 @@ end
 
 vim.opt.number = true
 vim.opt.ruler = true
-vim.opt.rulerformat = '%25(%n%m%r: %Y [%l,%v] %p%%%)'
+vim.opt.rulerformat = "%25(%n%m%r: %Y [%l,%v] %p%%%)"
 vim.opt.shiftwidth = 4
 vim.opt.tabstop = 4
 vim.opt.expandtab = true
-vim.opt.wildmenu = true
-vim.opt.termguicolors = true
+-- No wildmenu or termguicolors: the first is on by default, and Nvim turns the
+-- second on itself when the terminal reports 24-bit colour (Ghostty does, and
+-- Zellij passes COLORTERM through).
 vim.opt.colorcolumn = "80"
 
 -- Always reserve the sign column. gitsigns and diagnostics both draw here, so

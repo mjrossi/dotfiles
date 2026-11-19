@@ -6,6 +6,11 @@ function brew-compile-env --description 'Export CPPFLAGS/LDFLAGS/PKG_CONFIG_PATH
     # This used to run on every shell start, where it cost ~12ms in `find`
     # calls to set three variables that only matter while compiling. Run it
     # first if a build cannot find headers.
+    #
+    # The keg list is what is actually installed here. libyaml, libffi and
+    # zlib used to be on it for compiling Ruby, but mise installs precompiled
+    # Ruby now and those formulae are no longer present. openssl is matched
+    # unversioned so it follows whichever major Homebrew currently ships.
     if not test -d /opt/homebrew
         echo "brew-compile-env: no /opt/homebrew on this machine" >&2
         return 1
@@ -15,7 +20,7 @@ function brew-compile-env --description 'Export CPPFLAGS/LDFLAGS/PKG_CONFIG_PATH
     set -l ldflags "-L/opt/homebrew/lib"
     set -l pkg_paths "/opt/homebrew/lib/pkgconfig"
 
-    for keg in icu4c openssl@3 readline libyaml libffi zlib
+    for keg in icu4c openssl readline
         set -l keg_prefix (find /opt/homebrew/opt -maxdepth 1 -name "$keg*" -type l | head -1)
         if test -n "$keg_prefix"
             test -d "$keg_prefix/include"; and set cppflags $cppflags "-I$keg_prefix/include"
@@ -27,4 +32,9 @@ function brew-compile-env --description 'Export CPPFLAGS/LDFLAGS/PKG_CONFIG_PATH
     set -gx CPPFLAGS (string join -- " " $cppflags)
     set -gx LDFLAGS (string join -- " " $ldflags)
     set -gx PKG_CONFIG_PATH (string join -- ":" $pkg_paths)
+
+    # Pin native builds to this machine's macOS release (major.minor). This
+    # used to live in mise's [env], where the sw_vers call ran on every
+    # prompt (~11ms of the hook) for a value only builds need.
+    set -gx MACOSX_DEPLOYMENT_TARGET (sw_vers -productVersion | string match -r '^\d+(?:\.\d+)?')
 end

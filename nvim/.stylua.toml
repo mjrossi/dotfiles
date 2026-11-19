@@ -1,0 +1,8 @@
+# Mirrors .editorconfig at the repo root. conform already runs stylua on every
+# Lua save; without this file it fell back to stylua's default of tabs, which
+# is how claudecode.lua ended up tab-indented while everything else used four
+# spaces. Collapsing simple functions keeps lazy.nvim `keys` entries like
+# `function() Snacks.picker.files() end` on one line.
+indent_type = "Spaces"
+indent_width = 4
+collapse_simple_statement = "FunctionOnly"

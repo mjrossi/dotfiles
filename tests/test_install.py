@@ -22,8 +22,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from tests._helpers import DotfilesTestCase
 
 from lib.common import (
-    backup_path, restore_backup, create_symlink, is_managed_symlink,
-    Logger, StateManager
+    backup_path, create_symlink, discover_backup, is_managed_symlink,
+    restore_backup_at, Logger, StateManager
 )
 import install
 
@@ -120,8 +120,16 @@ class TestInstallWithExistingConfigs(DotfilesTestCase):
         self.assertEqual(backup2.name, "fish.bak.1")
 
 
+def _restore_newest(dest, dry_run=False, logger=None):
+    """Legacy restore: discover the newest backup, then restore that exact path."""
+    backup = discover_backup(dest)
+    if backup is None:
+        return False
+    return restore_backup_at(dest, backup, dry_run=dry_run, logger=logger)
+
+
 class TestRestoreBackupNumbered(unittest.TestCase):
-    """Test that restore_backup picks the most recent (highest-numbered) backup."""
+    """Legacy discovery picks the most recent (highest-numbered) backup."""
 
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -148,7 +156,7 @@ class TestRestoreBackupNumbered(unittest.TestCase):
         bak2.mkdir()
         (bak2 / "config.fish").write_text("# newest")
 
-        result = restore_backup(dest, dry_run=False, logger=self.logger)
+        result = _restore_newest(dest, dry_run=False, logger=self.logger)
 
         self.assertTrue(result)
         self.assertTrue(dest.exists())
@@ -166,7 +174,7 @@ class TestRestoreBackupNumbered(unittest.TestCase):
         bak.mkdir()
         (bak / "config.fish").write_text("# only backup")
 
-        result = restore_backup(dest, dry_run=False, logger=self.logger)
+        result = _restore_newest(dest, dry_run=False, logger=self.logger)
 
         self.assertTrue(result)
         self.assertTrue(dest.exists())
@@ -681,6 +689,8 @@ class TestInstallBrewfile(unittest.TestCase):
         self.assertEqual(mock_run.call_count, 1)
         called_args = mock_run.call_args.args[0]
         self.assertIn('check', called_args)
+        # An outdated formula must not count as unsatisfied
+        self.assertIn('--no-upgrade', called_args)
 
     def test_dry_run_with_unsatisfied_brewfile_does_not_install(self):
         (self.dotfiles_dir / "Brewfile").write_text("brew 'mise'\n")
@@ -719,6 +729,28 @@ class TestInstallBrewfile(unittest.TestCase):
 
         self.assertIs(result, False)
 
+    def test_bundle_calls_never_upgrade(self):
+        (self.dotfiles_dir / "Brewfile").write_text("brew 'mise'\n")
+        check_result = subprocess.CompletedProcess(args=[], returncode=1, stdout='', stderr='')
+        install_result = subprocess.CompletedProcess(args=[], returncode=0, stdout='', stderr='')
+
+        with mock.patch(
+            'install.subprocess.run', side_effect=[check_result, install_result]
+        ) as mock_run, mock.patch(
+            'install.shutil.which', return_value='/usr/local/bin/brew'
+        ), mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop('DOTFILES_SKIP_BREW', None)
+            result = install.install_brewfile(
+                self.dotfiles_dir, _make_args(), self.logger
+            )
+
+        self.assertIs(result, True)
+        check_cmd, install_cmd = (c.args[0] for c in mock_run.call_args_list)
+        self.assertEqual(check_cmd[:3], ['brew', 'bundle', 'check'])
+        self.assertEqual(install_cmd[:3], ['brew', 'bundle', 'install'])
+        self.assertIn('--no-upgrade', check_cmd)
+        self.assertIn('--no-upgrade', install_cmd)
+
 
 class TestInstallMainFailures(unittest.TestCase):
     """Top-level install status includes failures outside symlink creation."""
@@ -740,6 +772,41 @@ class TestInstallMainFailures(unittest.TestCase):
                     install.main()
 
         self.assertEqual(raised.exception.code, 1)
+
+
+class TestInstallPrunesStaleState(unittest.TestCase):
+    """install.main saves state without records for sources it no longer has."""
+
+    def test_stale_record_dropped_and_legacy_record_upgraded(self):
+        import json
+        with tempfile.TemporaryDirectory() as test_dir:
+            root = Path(test_dir)
+            state_file = root / '.dotfiles-state'
+            state_file.write_text(json.dumps({'version': '1.0', 'installed': [
+                {'type': 'dir', 'source': 'launchd',
+                 'destination': str(root / 'LaunchAgents'), 'backup_created': False},
+                {'type': 'file', 'source': 'gitconfig',
+                 'destination': str(root / '.gitconfig'), 'backup_created': False},
+            ]}))
+            with mock.patch.object(install, 'CONFIG_DIRS', {}), \
+                 mock.patch.object(install, 'CONFIG_FILES', {'gitconfig': root / '.gitconfig'}), \
+                 mock.patch.object(install, 'get_dotfiles_dir', return_value=root), \
+                 mock.patch.object(install, 'process_item'), \
+                 mock.patch.object(install, 'fix_ssh_permissions'), \
+                 mock.patch.object(install, 'generate_zellij_config', return_value=None), \
+                 mock.patch.object(install, 'install_brewfile', return_value=True), \
+                 mock.patch.object(sys, 'argv', ['install.py']), \
+                 mock.patch.dict(os.environ, {'DOTFILES_STATE_FILE': str(state_file)}), \
+                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    install.main()
+
+            saved = json.loads(state_file.read_text())
+
+        self.assertEqual(raised.exception.code, 0)
+        self.assertEqual(saved['version'], '1.1')
+        self.assertEqual([r['source'] for r in saved['installed']], ['gitconfig'])
+        self.assertIn('backup_path', saved['installed'][0])
 
 
 if __name__ == '__main__':

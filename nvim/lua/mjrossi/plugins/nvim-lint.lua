@@ -1,29 +1,25 @@
 return {
     "mfussenegger/nvim-lint",
-    ft = { "go", "ruby" },
+    ft = { "go" },
     config = function()
         local lint = require("lint")
 
-        -- No python entry: the ruff language server publishes those
-        -- diagnostics itself, so linting here would duplicate them.
+        -- No python or ruby entry: the ruff and ruby-lsp language servers
+        -- publish those diagnostics themselves (ruby-lsp via the project's
+        -- bundled rubocop), so linting here would duplicate them.
         lint.linters_by_ft = {
-            ruby = { "rubocop" },
             go = { "golangcilint" },
         }
 
         local group = vim.api.nvim_create_augroup("mjrossi-lint", { clear = true })
         vim.api.nvim_create_autocmd("BufWritePost", {
             group = group,
-            callback = function()
-                lint.try_lint()
-            end,
+            callback = function() lint.try_lint() end,
         })
         vim.api.nvim_create_autocmd("FileType", {
             group = group,
-            pattern = { "go", "ruby" },
-            callback = function()
-                lint.try_lint()
-            end,
+            pattern = { "go" },
+            callback = function() lint.try_lint() end,
         })
 
         -- The FileType event that loaded this plugin has already fired, so

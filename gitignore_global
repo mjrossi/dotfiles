@@ -1,42 +1,22 @@
-# Compiled source #
-###################
-*.com
-*.class
-*.dll
-*.exe
-*.o
-*.so
-*.pyc
+# Global ignores are for cruft that no repository ever wants: files the OS or
+# an editor drops next to your work. Build output, archives, logs and
+# databases are project decisions and belong in each repo's own .gitignore;
+# ignoring them here hides them from every repo, including ones that track
+# them on purpose.
 
-# Packages #
-############
-# it's better to unpack these files and commit the raw source
-# git has its own built in compression methods
-*.7z
-*.dmg
-*.gz
-*.iso
-*.jar
-*.rar
-*.tar
-*.zip
-
-# Logs and databases #
-######################
-*.log
-*.sqlite
-*.sqlite3
-
-# OS generated files #
-######################
+# macOS
 .DS_Store
-.DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
-Thumbs.db
 
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# Vim / Neovim swap files
 *.swp
 *.swo
+
+# Claude Code per-user overrides (the shared settings.json stays tracked)
 **/.claude/settings.local.json

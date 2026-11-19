@@ -30,6 +30,9 @@ python3 -m unittest tests.test_install.TestFreshInstall -v
 - **TestStateManagerMalformedJson** — graceful empty-state fallback for corrupt or missing-key JSON
 - **TestStateManagerEnvOverride** — `DOTFILES_STATE_FILE` env var honored; explicit constructor arg wins over env
 - **TestStateManagerDedup** — duplicate destinations merge to the latest entry on save
+- **TestStateMigration** — `load()` upgrades 1.0 records by recording the newest discovered backup (or `None`), leaves 1.1 records alone, saves only 1.1 records, and reports parse failures through the `Logger`
+- **TestStatePrune** — records for unconfigured sources are dropped unless their destination still links into the repo
+- **TestStateFileLocation** — the default state file lives at the dotfiles repo root
 - **TestGetDotfilesDir** — returns absolute path to repo root
 - **TestCreateSymlinkFailures** — missing source returns false; parent dirs created on demand; dry-run is a true no-op (returns success without creating parents or symlinks)
 - **TestRemoveSymlinkSafety** — refuses non-symlinks and symlinks pointing outside the dotfiles dir; dry-run no-op
@@ -39,23 +42,24 @@ python3 -m unittest tests.test_install.TestFreshInstall -v
 
 - **TestFreshInstall** — symlink creation when no config exists; no backup on fresh install; managed-symlink recognition
 - **TestInstallWithExistingConfigs** — backup created for existing directories; numbered backups when `.bak` already exists
-- **TestRestoreBackupNumbered** — backup restoration picks the highest-numbered backup; falls back to `.bak` when no numbered backups exist
+- **TestRestoreBackupNumbered** — legacy backup discovery picks the highest-numbered backup; falls back to `.bak` when no numbered backups exist
 - **TestZellijSpecialHandling** — `config.kdl` is generated from `config.shared.kdl`, regenerated on every run, and appends `config.local.kdl` when present; missing shared file or missing dir is a no-op; dry-run does not write
 - **TestIdempotency** — already-installed symlinks are detected and skipped
 - **TestStatePreservation** — existing state file is loaded before save; empty state works
 - **TestFixSSHPermissions** — `~/.ssh` directory chmod 700, files chmod 600, no-op when already correct, follows symlinks to the repo, dry-run does not change perms, missing SSH dir is a no-op
 - **TestProcessItem** — fresh install of dirs/files; error on missing source; type-mismatch detection; already-installed skip; existing-directory backup; stale managed symlink is relinked instead of erroring; broken symlinks are replaced; dry-run does not create symlinks
-- **TestInstallBrewfile** — `--skip-brew` and `DOTFILES_SKIP_BREW` short-circuits; missing Brewfile and missing `brew` binary are silent no-ops; satisfied Brewfile skips install; dry-run with unsatisfied Brewfile does not install; a failed bundle install returns failure
+- **TestInstallBrewfile** — `--skip-brew` and `DOTFILES_SKIP_BREW` short-circuits; missing Brewfile and missing `brew` binary are silent no-ops; satisfied Brewfile skips install; dry-run with unsatisfied Brewfile does not install; a failed bundle install returns failure; both bundle calls pass `--no-upgrade`
 - **TestInstallMainFailures** — top-level install exits nonzero when Brew installation fails
+- **TestInstallPrunesStaleState** — a full install run saves 1.1 state without records for sources that are no longer configured
 
 ### Uninstallation tests (`test_uninstall.py`)
 
 - **TestUninstallWithBackups** — managed symlinks are removed and backups restored
 - **TestUninstallFreshMachine** — uninstall works when no backup exists
-- **TestMachineSpecificFilePreservation** — `fish/config.local.fish` and `zellij/config.kdl` are preserved across uninstall (with and without backup restoration); preservation handles missing local files; dry-run does not copy
+- **TestMachineSpecificFilePreservation** — `fish/config.local.fish` and `zellij/config.local.kdl` are preserved (the generated `config.kdl` is not) across uninstall (with and without backup restoration); preservation handles missing local files; dry-run does not copy
 - **TestDryRunMode** — backup dry-run makes no filesystem changes
 - **TestRemoveSymlinkRefusesExternal** — symlinks pointing outside the dotfiles dir are not removed
-- **TestRestoreBackupMissing** — restore returns false when no backup exists; dry-run preserves that signal
+- **TestRestoreBackupMissing** — restoring a legacy record returns false when no backup exists; dry-run preserves that signal
 - **TestRecordedBackupRestoration** — no-backup records leave stale `.bak` files alone; exact recorded paths win over newer unrelated numbered backups
 
 ## Test Structure

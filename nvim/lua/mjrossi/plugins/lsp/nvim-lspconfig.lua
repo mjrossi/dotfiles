@@ -13,7 +13,7 @@ return {
     config = function()
         -- Shared capabilities for every server. Keymaps are wired separately
         -- by the LspAttach autocmd in mjrossi.lsp.attach.
-        vim.lsp.config('*', {
+        vim.lsp.config("*", {
             capabilities = require("blink.cmp").get_lsp_capabilities(),
         })
 
@@ -93,7 +93,8 @@ return {
                     warned_roots[root] = true
                     vim.notify(
                         "mdx_analyzer not started: no TypeScript with a JavaScript API in "
-                            .. root .. " -- Volar needs typescript 6 or older",
+                            .. root
+                            .. " -- Volar needs typescript 6 or older",
                         vim.log.levels.WARN
                     )
                 end

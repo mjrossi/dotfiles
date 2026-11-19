@@ -2,8 +2,12 @@
 font-family = JetBrains Mono
 font-size = 14
 
-# Theme - match Neovim
-theme = tokyonight
+# Theme - Tokyo Night Night, matching Neovim (style = "night") and Zellij
+# (tokyo-night). Spelled exactly as `ghostty +list-themes` prints it: the
+# lowercase form only resolved because the macOS filesystem is
+# case-insensitive, matching the plain TokyoNight file (the same palette, but
+# naming the variant keeps all three tools visibly in step).
+theme = TokyoNight Night
 
 # Window
 window-padding-x = 4
@@ -12,15 +16,19 @@ macos-titlebar-style = tabs
 
 # Shell
 #
-# Ghostty sets GHOSTTY_SHELL_FEATURES and injects XDG_DATA_DIRS from this, but
-# its fish snippet does not actually load: Ghostty points fish at
-# <Resources>/fish/vendor_conf.d, which holds only completions, while the
-# integration ships under <Resources>/ghostty/shell-integration/fish/.
+# Ghostty injects its integration directory into XDG_DATA_DIRS, so fish
+# sources ghostty-shell-integration.fish from vendor_conf.d at startup. That
+# script registers __ghostty_setup for the first prompt and then removes its
+# own XDG_DATA_DIRS entry, which is why the directory looks absent afterwards.
+# It applies the features listed in GHOSTTY_SHELL_FEATURES (here the defaults:
+# cursor:steady, path, title).
 #
-# It does not matter. fish 4.x emits the sequences natively -- OSC 133 (prompt
-# and command marks), OSC 7 (cwd) and OSC 0 (title) are compiled into the fish
-# binary. That is what Zellij's Ctrl-s command scrolling reads, and being
-# terminal-independent it keeps working inside a pane.
+# Because the entry is removed, shells that Zellij spawns in its panes do not
+# load the integration again. That does not matter much: fish 4.x emits the
+# core sequences natively -- OSC 133 (prompt and command marks), OSC 7 (cwd)
+# and OSC 0 (title) are compiled into the fish binary. That is what Zellij's
+# Ctrl-s command scrolling reads, and being terminal-independent it keeps
+# working inside a pane.
 shell-integration = fish
 
 # Cursor
@@ -38,4 +46,4 @@ macos-option-as-alt = true
 # Keybindings
 keybind = shift+enter=text:\n
 
-quit-after-last-window-closed=true
+quit-after-last-window-closed = true

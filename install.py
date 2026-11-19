@@ -3,6 +3,9 @@
 Dotfiles installation script - creates symlinks for configuration files and directories.
 """
 
+from __future__ import annotations
+
+import argparse
 import os
 import shutil
 import subprocess
@@ -13,11 +16,20 @@ from pathlib import Path
 from lib.common import (
     CONFIG_DIRS, CONFIG_FILES, Logger, StateManager,
     build_arg_parser, get_dotfiles_dir, backup_path, create_symlink,
-    is_managed_symlink, run_main,
+    is_managed_symlink, symlink_target, run_main,
 )
 
 
-def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, counters):
+def process_item(
+    source_name: str,
+    dest: Path,
+    kind: str,
+    dotfiles_dir: Path,
+    state: StateManager,
+    args: argparse.Namespace,
+    logger: Logger,
+    counters: dict[str, int],
+) -> None:
     """Process a single config item: validate, backup if needed, and create symlink."""
     source = dotfiles_dir / source_name
 
@@ -43,10 +55,8 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
     # Check destination status
     if dest.exists() or dest.is_symlink():
         if is_managed_symlink(dest, dotfiles_dir):
-            target = dest.readlink()
-            if not target.is_absolute():
-                target = (dest.parent / target).resolve()
-            if target == source:
+            target = symlink_target(dest)
+            if target == source.resolve():
                 logger.debug(f"Already installed: {source_name}")
                 logger.info("Skipped (already installed)", indent=True)
                 counters['skipped'] += 1
@@ -81,8 +91,7 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
             if not args.dry_run:
                 dest.unlink()
 
-    # Create symlink
-    logger.debug(f"Creating symlink: {dest} -> {source}")
+    # Create symlink (create_symlink logs the debug line itself)
     if create_symlink(source, dest, dry_run=args.dry_run, logger=logger):
         logger.success("Created symlink", indent=True)
         counters['installed'] += 1
@@ -98,7 +107,7 @@ def process_item(source_name, dest, kind, dotfiles_dir, state, args, logger, cou
         counters['errors'] += 1
 
 
-def _chmod_600(path, label, dry_run, logger):
+def _chmod_600(path: Path, label: str, dry_run: bool, logger: Logger) -> bool:
     """chmod a single file to 600 unless it already is. Returns True if changed."""
     # is_file() follows symlinks and is True only when the link resolves,
     # so a broken symlink won't raise FileNotFoundError here.
@@ -116,7 +125,7 @@ def _chmod_600(path, label, dry_run, logger):
     return True
 
 
-def fix_ssh_permissions(ssh_dir, dry_run, logger):
+def fix_ssh_permissions(ssh_dir: Path, dry_run: bool, logger: Logger) -> None:
     """Ensure ~/.ssh is 700, and config plus any private key is 600.
 
     No-op for anything already correct.
@@ -142,7 +151,9 @@ def fix_ssh_permissions(ssh_dir, dry_run, logger):
         _chmod_600(key, f"~/.ssh/{key.name}", dry_run, logger)
 
 
-def generate_zellij_config(zellij_config_dir, dry_run, logger):
+def generate_zellij_config(
+    zellij_config_dir: Path, dry_run: bool, logger: Logger
+) -> str | None:
     """Regenerate zellij config.kdl from config.shared.kdl + optional config.local.kdl.
 
     Returns a short 'shared' or 'shared + local' description when it generated,
@@ -169,12 +180,17 @@ def generate_zellij_config(zellij_config_dir, dry_run, logger):
     return detail
 
 
-def install_brewfile(dotfiles_dir, args, logger):
+def install_brewfile(
+    dotfiles_dir: Path, args: argparse.Namespace, logger: Logger
+) -> bool:
     """Install Brewfile packages idempotently.
 
     Skips silently when brew is unavailable, the opt-out flag/env is set,
     or the Brewfile is already satisfied. Never runs `cleanup`, so packages
     present on the machine but absent from the Brewfile are left alone.
+    Both bundle calls pass --no-upgrade: without it `check` fails whenever a
+    listed formula is merely outdated, and `install` then upgrades it, which
+    is not what an additive, install-what-is-missing step should do.
     Returns False only when an attempted bundle installation fails.
     """
     if args.skip_brew or os.environ.get('DOTFILES_SKIP_BREW'):
@@ -192,19 +208,19 @@ def install_brewfile(dotfiles_dir, args, logger):
 
     logger.header("Checking Brewfile...")
     check = subprocess.run(
-        ['brew', 'bundle', 'check', f'--file={brewfile}'],
+        ['brew', 'bundle', 'check', '--no-upgrade', f'--file={brewfile}'],
         capture_output=True, text=True,
     )
     if check.returncode == 0:
         logger.success("Brewfile dependencies already satisfied", indent=True)
         return True
 
+    install_cmd = ['brew', 'bundle', 'install', '--no-upgrade', f'--file={brewfile}']
     if args.dry_run:
-        logger.info(f"Would run: brew bundle install --file={brewfile}", indent=True)
+        logger.info(f"Would run: {' '.join(install_cmd)}", indent=True)
         return True
 
     logger.info("Installing missing Brewfile packages...", indent=True)
-    install_cmd = ['brew', 'bundle', 'install', f'--file={brewfile}']
     if args.verbose:
         result = subprocess.run(install_cmd)
     else:
@@ -221,7 +237,7 @@ def install_brewfile(dotfiles_dir, args, logger):
         return False
 
 
-def main():
+def main() -> None:
     """Main installation logic"""
     parser = build_arg_parser(
         description='Install dotfiles via symlinks',
@@ -230,7 +246,7 @@ Examples:
   ./install.py                    # Install dotfiles
   ./install.py --dry-run          # Preview changes without executing
   ./install.py --verbose          # Show detailed output
-  ./install.py --force            # Override without prompts
+  ./install.py --force            # Accepted for symmetry; install never prompts
   ./install.py --dry-run --verbose # Combine flags
         """,
         include_skip_brew=True,
@@ -241,12 +257,21 @@ Examples:
     logger = Logger(verbose=args.verbose)
     state = StateManager()
 
-    # Preserve existing installation records for items that are already installed
-    state.installations = state.load()
-
     # Get dotfiles directory
     dotfiles_dir = get_dotfiles_dir()
     logger.debug(f"Dotfiles directory: {dotfiles_dir}")
+
+    # Preserve existing installation records for items that are already
+    # installed (load() also upgrades 1.0 records), and forget records for
+    # sources this repo no longer has, unless their symlink is still in place
+    # for uninstall to remove.
+    state.load(logger)
+    orphaned = state.prune(set(CONFIG_DIRS) | set(CONFIG_FILES), dotfiles_dir)
+    for record in orphaned:
+        logger.warning(
+            f"{record['source']} is no longer configured, but {record['destination']} "
+            "still links into this repo; kept in state so uninstall.py can remove it"
+        )
 
     if args.dry_run:
         logger.info("DRY RUN MODE - No changes will be made")

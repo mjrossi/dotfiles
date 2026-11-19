@@ -2,15 +2,31 @@
 
 [![tests](https://github.com/mjrossi/dotfiles/actions/workflows/tests.yml/badge.svg)](https://github.com/mjrossi/dotfiles/actions/workflows/tests.yml)
 
-Personal configuration for Fish, Neovim, Zellij, Ghostty, mise, Git, and SSH, managed via symlinks into `~/.config/` and `~/`. Two Python scripts (`install.py`, `uninstall.py`) wire it up. Stdlib only — Python 3.9+.
+Personal configuration for Fish, Neovim, Zellij, Ghostty, mise, Git, SSH, and a set of Claude Code skills, managed via symlinks into `~/.config/` and `~/`. Two Python scripts (`install.py`, `uninstall.py`) wire it up. Stdlib only — Python 3.9+.
 
 ## Quick start
 
+On a fresh Mac:
+
 ```bash
+# 1. Homebrew, then put it on PATH for this shell
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# 2. Symlinks, plus the Brewfile (mise, fish, casks, a few utilities)
 git clone <your-repo-url> ~/dotfiles
 cd ~/dotfiles
 ./install.py                  # see `./install.py --help` for flags
+
+# 3. Runtimes and CLIs from mise/config.toml
+mise install
+
+# 4. fish as the login shell
+echo /opt/homebrew/bin/fish | sudo tee -a /etc/shells
+chsh -s /opt/homebrew/bin/fish
 ```
+
+On an existing machine only step 2 is needed; re-running `./install.py` is safe.
 
 On the first install, set up machine-local files (all gitignored):
 
@@ -35,16 +51,40 @@ Then restart your shell (`exec $SHELL`) and open `nvim` once to initialize plugi
 ./uninstall.py
 ```
 
-Removes only symlinks that point back into this repo, restores the exact `.bak` path recorded by `install.py`, and copies preserved machine-local files (`fish/config.local.fish`, `zellij/config.kdl`) back into the restored directories. Without a state record, backups are left untouched for manual recovery rather than guessed by filename.
+Removes only symlinks that point back into this repo, restores the exact `.bak` path recorded by `install.py`, and copies preserved machine-local files (`fish/config.local.fish`, `zellij/config.local.kdl`) back into the restored directories. Zellij's generated `config.kdl` is not carried over, so after an uninstall Zellij runs on its defaults until you rebuild it or merge the preserved overrides by hand. Without a state record, backups are left untouched for manual recovery rather than guessed by filename.
 
 ## Package management
 
-Global tooling splits between `mise` and `brew`:
+Each tool has a default owner: **brew** for bootstrap and anything that needs macOS integration (`mise`, `fish`, `1password-cli`, `ghostty`, `gnupg`, `pinentry-mac`, the `r-app` cask, a few trivial unix utilities); **mise** for runtimes and developer CLIs, prebuilt backends (`aqua:`, `github:`) first; mise's Go postinstall for `gopls` and `dlv`; **Mason** for editor-only servers and formatters, as a fallback behind mise. These are defaults rather than rules -- the full table, with the reasoning, is in [CLAUDE.md](./CLAUDE.md#tool-ownership).
 
-- **`mise`** — language runtimes and developer CLIs (anything installable via `cargo:`, `go:`, `pipx:`, `npm:`, or a native/aqua plugin). Config in `mise/config.toml`.
-- **`brew`** — only what can't live in mise cleanly: `mise` itself (bootstrap), `fish` (login shell), GPG/macOS integration (`gnupg`, `pinentry-mac`), third-party taps, R (the `r-app` cask, so CRAN's prebuilt packages work), a handful of trivial unix utilities. Tracked in `Brewfile`.
+`install.py` runs `brew bundle` against the committed `Brewfile` with `--no-upgrade` -- additive only: it installs what is missing, does not upgrade what is merely outdated, and never runs `cleanup`, so ad-hoc brew installs are left alone. Skip with `--skip-brew` or `DOTFILES_SKIP_BREW=1`; no-ops when `brew` isn't on PATH and exits nonzero when an attempted bundle install fails. The `r-app` cask installs from CRAN's `.pkg`, so a fresh run stops once for your sudo password.
 
-`install.py` runs `brew bundle` against the committed `Brewfile` — additive only, never `cleanup`, so ad-hoc brew installs are left alone. Skip with `--skip-brew` or `DOTFILES_SKIP_BREW=1`; no-ops when `brew` isn't on PATH and exits nonzero when an attempted bundle install fails. The `r-app` cask installs from CRAN's `.pkg`, so a fresh run stops once for your sudo password, even with `--force`.
+## Terminal stack
+
+Ghostty runs fish, usually inside Zellij. All three, and Neovim, use the Tokyo Night **Night** variant, set in four places:
+
+| Tool | Where | Setting |
+|---|---|---|
+| Ghostty | `ghostty/config` | `theme = TokyoNight Night` |
+| Zellij | `zellij/config.shared.kdl` | `theme "tokyo-night"` (Zellij's built-in Night palette) |
+| fish | `fish/conf.d/30-interactive.fish` | `fish_color_*` values from the Night palette |
+| Neovim | `nvim/lua/mjrossi/plugins/tokyonight.lua` | `style = "night"` |
+
+fish startup is split across `fish/conf.d/` by dependency order; see [CLAUDE.md](./CLAUDE.md#fish-startup-layout). Zellij's `config.kdl` is generated by `install.py` from `config.shared.kdl` plus an optional `config.local.kdl`.
+
+## Editor
+
+Neovim, configured in `nvim/`. Who provides the language server, formatter and linter for each language -- mise, a project pin, ruby-lsp, or Mason as the fallback -- is in [nvim/README.md](./nvim/README.md#language-support), along with the keybindings.
+
+## Claude Code skills
+
+`claude/skills/` holds sixteen vendored review and refactoring skills, each linked to `~/.claude/skills/<name>` by `install.py`. Where they came from and how to add one is in [claude/skills/README.md](./claude/skills/README.md). `just claude-review-skill` clones or fast-forwards the one skill that tracks its upstream instead.
+
+## Credentials
+
+- **SSH** goes through the 1Password SSH agent (`ssh/config`, `IdentityAgent` plus `SSH_AUTH_SOCK` in `fish/conf.d/20-env.fish`). No private key is read from disk. Enabling the agent in 1Password rewrites `~/.ssh/config`, which is a symlink into this repo, so expect a `git diff` afterwards and fold its block into the existing `Host *`.
+- **Commit signing** uses SSH keys via 1Password's `op-ssh-sign` (`gitconfig`, `[gpg "ssh"]`); the signing key itself is set per machine in `~/.gitconfig.local`.
+- **GitHub** access goes through `gh`, which keeps its own stored login. No token is exported into the shell.
 
 ## Architecture
 
@@ -53,5 +93,6 @@ For code-level details (how the symlink/backup/state machinery works, how to add
 ## Tests
 
 ```bash
-python3 -m unittest discover tests -v
+python3 -m unittest discover tests -v   # or: just test
+just lint                               # fish parse check + stylua --check nvim
 ```

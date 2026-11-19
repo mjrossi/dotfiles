@@ -21,11 +21,19 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from tests._helpers import DotfilesTestCase
 
 from lib.common import (
-    restore_backup, remove_symlink, is_managed_symlink,
+    remove_symlink, is_managed_symlink,
     Logger
 )
 import install
 import uninstall
+
+
+def _restore_legacy(dest, dry_run=False, logger=None):
+    """Restore the way a 1.0 record (backup taken, name unrecorded) does."""
+    return uninstall.restore_item_backup(
+        {'destination': str(dest), 'backup_created': True},
+        dry_run=dry_run, logger=logger or Logger(verbose=False),
+    )
 
 
 class TestUninstallWithBackups(DotfilesTestCase):
@@ -62,7 +70,7 @@ class TestUninstallWithBackups(DotfilesTestCase):
         remove_symlink(dest, self.dotfiles_dir, dry_run=False, logger=self.logger)
 
         # Restore backup
-        result = restore_backup(dest, dry_run=False, logger=self.logger)
+        result = _restore_legacy(dest, dry_run=False, logger=self.logger)
 
         self.assertTrue(result)
         self.assertTrue(dest.exists())
@@ -95,7 +103,7 @@ class TestUninstallFreshMachine(DotfilesTestCase):
         self.assertFalse(dest.exists())
 
         # Try to restore backup (should fail gracefully)
-        backup_restored = restore_backup(dest, dry_run=False, logger=self.logger)
+        backup_restored = _restore_legacy(dest, dry_run=False, logger=self.logger)
 
         self.assertFalse(backup_restored)
         self.assertFalse(dest.exists())
@@ -115,7 +123,8 @@ class TestMachineSpecificFilePreservation(DotfilesTestCase):
         zellij_dir = self.dotfiles_dir / "zellij"
         zellij_dir.mkdir()
         (zellij_dir / "config.shared.kdl").write_text("# shared")
-        (zellij_dir / "config.kdl").write_text("# machine-specific")
+        (zellij_dir / "config.kdl").write_text("# generated")
+        (zellij_dir / "config.local.kdl").write_text("# machine-specific")
 
         # Post-install state: destinations are symlinks to the dotfiles dirs
         (self.config_dir / "fish").symlink_to(fish_dir)
@@ -148,23 +157,25 @@ class TestMachineSpecificFilePreservation(DotfilesTestCase):
         self.assertTrue(preserved_file.exists())
         self.assertEqual(preserved_file.read_text(), "# machine-specific")
 
-    def test_preserve_zellij_config_kdl(self):
+    def test_preserve_zellij_config_local_kdl(self):
         zellij_dest = self.config_dir / "zellij"
 
         found = uninstall.find_preserved_file(
             'zellij', 'dir', zellij_dest, self.dotfiles_dir
         )
         self.assertIsNotNone(found)
-        self.assertEqual(found['filename'], 'config.kdl')
+        self.assertEqual(found['filename'], 'config.local.kdl')
 
         remove_symlink(zellij_dest, self.dotfiles_dir, dry_run=False, logger=self.logger)
 
         ok = uninstall.preserve_file(found, zellij_dest, dry_run=False, logger=self.logger)
 
         self.assertTrue(ok)
-        preserved_file = zellij_dest / "config.kdl"
+        preserved_file = zellij_dest / "config.local.kdl"
         self.assertTrue(preserved_file.exists())
         self.assertEqual(preserved_file.read_text(), "# machine-specific")
+        # The generated config.kdl is not carried over; install.py rebuilds it.
+        self.assertFalse((zellij_dest / "config.kdl").exists())
 
     def test_preserve_with_backup_restoration(self):
         fish_dest = self.config_dir / "fish"
@@ -179,7 +190,7 @@ class TestMachineSpecificFilePreservation(DotfilesTestCase):
         )
 
         remove_symlink(fish_dest, self.dotfiles_dir, dry_run=False, logger=self.logger)
-        restore_backup(fish_dest, dry_run=False, logger=self.logger)
+        _restore_legacy(fish_dest, dry_run=False, logger=self.logger)
         uninstall.preserve_file(found, fish_dest, dry_run=False, logger=self.logger)
 
         self.assertTrue(fish_dest.exists())
@@ -286,7 +297,7 @@ class TestRemoveSymlinkRefusesExternal(unittest.TestCase):
 
 
 class TestRestoreBackupMissing(unittest.TestCase):
-    """restore_backup returns False cleanly when no backup exists."""
+    """A legacy record restores nothing, cleanly, when no backup exists."""
 
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -299,7 +310,7 @@ class TestRestoreBackupMissing(unittest.TestCase):
     def test_returns_false_when_no_backup(self):
         dest = self.config_dir / "fish"
 
-        result = restore_backup(dest, dry_run=False, logger=self.logger)
+        result = _restore_legacy(dest, dry_run=False, logger=self.logger)
 
         self.assertFalse(result)
         self.assertFalse(dest.exists())
@@ -307,7 +318,7 @@ class TestRestoreBackupMissing(unittest.TestCase):
     def test_dry_run_returns_false_when_no_backup(self):
         dest = self.config_dir / "fish"
 
-        result = restore_backup(dest, dry_run=True, logger=self.logger)
+        result = _restore_legacy(dest, dry_run=True, logger=self.logger)
 
         self.assertFalse(result)
 
@@ -479,7 +490,7 @@ class TestOwnedBackup(DotfilesTestCase):
         (self.config_dir / 'fish.bak.1').mkdir()
 
         owned = uninstall.owned_backup(
-            {'dest': dest, 'backup_created': True}
+            {'destination': str(dest), 'backup_created': True}
         )
 
         self.assertEqual(owned, self.config_dir / 'fish.bak.1')
@@ -490,7 +501,7 @@ class TestOwnedBackup(DotfilesTestCase):
         (self.config_dir / 'fish.bak.1').mkdir()
 
         owned = uninstall.owned_backup({
-            'dest': dest,
+            'destination': str(dest),
             'backup_created': True,
             'backup_path': str(self.config_dir / 'fish.bak'),
         })
@@ -502,10 +513,10 @@ class TestOwnedBackup(DotfilesTestCase):
         (self.config_dir / 'fish.bak').mkdir()
 
         self.assertIsNone(
-            uninstall.owned_backup({'dest': dest, 'backup_created': False})
+            uninstall.owned_backup({'destination': str(dest), 'backup_created': False})
         )
         self.assertIsNone(
-            uninstall.owned_backup({'dest': dest, 'backup_created': None})
+            uninstall.owned_backup({'destination': str(dest), 'backup_created': None})
         )
 
 
@@ -553,7 +564,7 @@ class TestMissingRecordedBackupWarns(DotfilesTestCase):
         with redirect_stdout(out), redirect_stderr(io.StringIO()):
             restored = uninstall.restore_item_backup(
                 {
-                    'dest': dest,
+                    'destination': str(dest),
                     'backup_created': True,
                     'backup_path': str(missing),
                 },
@@ -571,7 +582,7 @@ class TestMissingRecordedBackupWarns(DotfilesTestCase):
         out = io.StringIO()
         with redirect_stdout(out), redirect_stderr(io.StringIO()):
             restored = uninstall.restore_item_backup(
-                {'dest': dest, 'backup_created': False},
+                {'destination': str(dest), 'backup_created': False},
                 dry_run=False,
                 logger=logger,
             )
