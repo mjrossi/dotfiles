@@ -24,6 +24,7 @@ redactions = ["*_KEY", "*_TOKEN", "*_SECRET", "*_PASSWORD"]
 "github:terror/just-lsp" = "latest"                                  # VS Code's just extension looks for it on PATH; Mason's bin dir is nvim-only, so it lives here and nvim uses this copy too
 "go:github.com/tbvdm/sigtop/cmd/sigtop" = "latest"                   # Signal Desktop export. No prebuilt macOS binary; this replaces the brew HEAD build, which needed Homebrew's own go. Release tags track master closely
 "pipx:httpie" = "latest"
+"pipx:mistral-vibe" = "latest"                                       # Mistral Vibe CLI (vibe, vibe-acp). PyPI only, no prebuilt binary; upstream's install.sh just runs `uv tool install` too. Update via mise, not `vibe update`
 go = { version = "1.27", postinstall = "mise run install_go_tools" }
 node = "26"
 python = "3.14"
